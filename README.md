@@ -15,7 +15,9 @@ and use "Add to Home screen".
 
 ## Change songs
 
-Edit `songs.json` and run `vercel --prod` (or push to the connected Git repo). The tablet gets the
-new setlist on its next reload. Scroll speed and transpose changed on a device stay on that device.
+From the page itself: open Sync, paste a GitHub fine-grained token (this repo only, Contents:
+read and write). From then on every add, edit, delete, reorder, speed or transpose change is
+committed to `songs.json` here, and Vercel redeploys. Devices without a token read the setlist
+and keep their own tweaks locally.
 
-Tip: write a song in the page's editor, press Backup, copy the text, paste it into `songs.json`.
+You can also edit `songs.json` by hand and push.
