@@ -771,7 +771,7 @@ function startScroll(){
   countT=setInterval(()=>{ n--; if(n>0){ countEl.textContent=n; } else { clearInterval(countT); counting=false; countEl.hidden=true; reallyStart(); } },1000);
 }
 function stopScroll(){ playing=false; cancelAnimationFrame(raf); clearInterval(countT); counting=false; countEl.hidden=true; clearTimeout(hideT); bar.classList.remove('hide'); btnPlay.textContent='▶ Scroll'; btnPlay.classList.remove('on'); }
-function toggleScroll(){ if(counting){ startScroll(); return; } if(playing){ if(performance.now()-startedAt<500) return; stopScroll(); } else startScroll(); }
+function toggleScroll(){ if(counting){ startScroll(); return; } if(playing){ if(performance.now()-startedAt<500) return; stopScroll(); } else if(bar.classList.contains('hide')){ stopScroll(); } else startScroll(); }
 function applyMode(){ document.documentElement.dataset.mode=pref('outdoor',false)?'outdoor':''; if(!pref('outdoor',false)) delete document.documentElement.dataset.mode; }
 $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyMode(); toast(pref('outdoor',false)?'Outdoor mode on':'Outdoor mode off'); };
 applyMode();
@@ -817,7 +817,10 @@ document.addEventListener('keydown',e=>{
 let wake=null;
 function requestWake(){ try{ if(navigator.wakeLock&&!wake) navigator.wakeLock.request('screen').then(w=>{wake=w; w.addEventListener('release',()=>{wake=null;});}).catch(()=>{}); }catch(e){} }
 function releaseWake(){ try{ if(wake){ wake.release(); wake=null; } }catch(e){} }
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&!screens.stage.hidden) requestWake(); });
+// coming back from another app: stop any scrolling and make sure the controls are on screen
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&!screens.stage.hidden){ stopScroll(); requestWake(); } });
+window.addEventListener('pageshow',()=>{ if(!screens.stage.hidden) stopScroll(); });
+window.addEventListener('focus',()=>{ if(!screens.stage.hidden&&!playing) bar.classList.remove('hide'); });
 
 loadLocal(); renderLibrary(); connect();
 })();
