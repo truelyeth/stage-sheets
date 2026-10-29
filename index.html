@@ -228,7 +228,7 @@ async function ghPut(songs,msg){
   let r=await send();
   if(r.status===409||r.status===422){ await ghGet(); body.sha=fileSha; r=await send(); }
   if(!r.ok) throw new Error('GitHub '+r.status);
-  const j=await r.json(); fileSha=(j.content&&j.content.sha)||fileSha;
+  const j=await r.json(); fileSha=(j.content&&j.content.sha)||fileSha; ghEtag=null;
 }
 // one commit at a time; a burst of changes (slider, several reorders) folds into the next commit
 let pushing=false, pushPending=null, pushT=0;
@@ -244,24 +244,47 @@ async function flush(){
   catch(e){ online=false; setChip('GitHub save failed — kept on this device'); toast('Could not save to GitHub ('+e.message+')'); }
   pushing=false; if(pushPending) flush();
 }
-async function connect(){
-  const siteSongs=async()=>{ const r=await fetch(FILE+'?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error(r.status); const a=await r.json(); if(!Array.isArray(a)) throw new Error('bad'); return a; };
-  try{
-    if(token()){
-      const file=await ghGet();
-      state.songs=file.map((f,i)=>Object.assign({},f,{id:f.id||('file'+i)}));
-      online=true; saveLocal(); setChip('Synced with GitHub',true);
-    }else{
-      const file=await siteSongs();
-      const byId=new Map(state.songs.map(s=>[s.id,s]));
-      const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(l){ if(l.speed) s.speed=l.speed; s.tr=l.tr||0; } return s; });
-      const ids=new Set(merged.map(s=>s.id));
-      for(const l of state.songs) if(!ids.has(l.id)&&!l.fromFile) merged.push(l);
-      state.songs=merged; saveLocal(); setChip('Read-only — add a token in Sync to save online');
-    }
+let siteEtag=null, ghEtag=null;
+function applyRemote(file,fromGit){
+  const byId=new Map(state.songs.map(s=>[s.id,s]));
+  const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(!fromGit&&l){ if(l.speed) s.speed=l.speed; s.tr=l.tr||0; } return s; });
+  if(!fromGit){ const ids=new Set(merged.map(s=>s.id)); for(const l of state.songs) if(!ids.has(l.id)&&!l.fromFile) merged.push(l); }
+  const changed=JSON.stringify(merged.map(toDoc))!==JSON.stringify(state.songs.map(toDoc));
+  state.songs=merged; saveLocal();
+  if(changed){
     if(!screens.library.hidden) renderLibrary();
+    if(!screens.stage.hidden){ if(curIndex()<0){ show('library'); renderLibrary(); } else { const c=cur(); speedIn.value=c.speed; speedVal.textContent=c.speed; renderSheet(true); } }
+  }
+  return changed;
+}
+async function fetchRemote(){
+  if(token()){
+    const r=await fetch(API+'?ref='+BRANCH,{headers:Object.assign(ghEtag?{'If-None-Match':ghEtag}:{},ghHeaders()),cache:'no-store'});
+    if(r.status===304) return null;
+    if(!r.ok) throw new Error('GitHub '+r.status);
+    ghEtag=r.headers.get('ETag'); const j=await r.json(); fileSha=j.sha;
+    const arr=JSON.parse(b64dec(j.content)); if(!Array.isArray(arr)) throw new Error('bad file'); return arr;
+  }
+  const r=await fetch(FILE+'?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error(r.status);
+  const arr=await r.json(); if(!Array.isArray(arr)) throw new Error('bad'); return arr;
+}
+async function connect(){
+  try{
+    const arr=await fetchRemote();
+    if(arr) applyRemote(arr,!!token());
+    online=!!token(); setChip(token()?'Synced with GitHub':'Read-only — add a token in Sync to save online',!!token());
   }catch(e){ setChip(state.songs.length?'Offline copy':'Could not load songs'); }
 }
+// live updates: ask GitHub every 15 s (cheap: unchanged answers are 304s), the site file every 60 s, and right away when the tab comes back
+let polling=false;
+async function poll(){
+  if(polling||pushing||pushPending||document.visibilityState!=='visible'||!screens.editor.hidden) return;
+  polling=true;
+  try{ const arr=await fetchRemote(); if(arr&&applyRemote(arr,!!token())) toast('Setlist updated'); }catch(e){}
+  polling=false;
+}
+setInterval(()=>{ if(token()||Date.now()%60000<15000) poll(); },15000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') poll(); });
 async function writeSong(s){
   const i=state.songs.findIndex(x=>x.id===s.id);
   if(i>=0) state.songs[i]=Object.assign(state.songs[i],s); else state.songs.push(s);
@@ -395,7 +418,7 @@ $('#setSave').onclick=async function(){
   const t=$('#setToken').value.trim(); if(!t){ toast('Paste a token first'); return; }
   try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){ toast('This browser blocks storage'); return; }
   this.disabled=true; $('#setStatus').textContent='Checking…';
-  try{ await ghGet(); $('#setStatus').textContent='Token works. Setlist loaded from GitHub.'; await connect(); toast('Connected to GitHub'); }
+  try{ ghEtag=null; await ghGet(); $('#setStatus').textContent='Token works. Setlist loaded from GitHub.'; await connect(); toast('Connected to GitHub'); }
   catch(e){ $('#setStatus').textContent='GitHub rejected that token ('+e.message+'). Check it has Contents read and write on '+REPO+'.'; }
   this.disabled=false;
 };
