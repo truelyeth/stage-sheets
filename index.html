@@ -64,11 +64,35 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .song .tools{display:flex;flex-direction:column;gap:4px}
 .song .tools button{min-height:0;height:30px;min-width:40px;padding:0;font-size:13px;color:var(--muted)}
 .empty{color:var(--muted);padding:40px 0;text-align:center}
+.lists{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.lists button{min-height:38px;padding:0 14px;border-radius:999px;font-size:15px}
+.lists button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.lists .sep{width:1px;height:26px;background:var(--line);margin:0 4px}
+.list-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.list-tools button{min-height:36px;padding:0 12px;font-size:14px}
+.pick{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.pick label{flex-direction:row;align-items:center;gap:12px;font-size:17px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
+.pick input{width:22px;height:22px;accent-color:var(--accent)}
+.pick .k{font-family:var(--mono);color:var(--chord);font-size:14px;margin-left:auto}
+.bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
+#btnCount.on{border-color:var(--chord);color:var(--chord)}
+/* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
+.zone{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
+.zone button,.zone select{border-color:color-mix(in srgb,var(--zone) 45%,var(--line))}
+.zone .lbl{color:var(--zone)}
+.z-play{--zone:var(--accent);flex:2 1 420px}
+.z-nav{--zone:#6ea8ff;flex:2 1 340px}
+.z-nav .title{flex:1 1 90px;min-width:0}
+.z-nav button{flex:none}
+.z-key{--zone:var(--chord)}
+.z-view{--zone:var(--muted)}
+html[data-mode="outdoor"] .z-nav{--zone:#1f5fbf}
+.bar .title{flex:1 1 120px}
 .hint{color:var(--muted);font-size:14px;margin-top:24px;max-width:65ch}
 
 /* Stage */
 #stage{position:fixed;top:0;left:0;right:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
-.sheet{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:calc(14px + env(safe-area-inset-top,0px)) var(--gutter-r) 70vh var(--gutter-l);cursor:pointer;scrollbar-width:thin}
+.sheet{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:calc(14px + env(safe-area-inset-top,0px)) var(--gutter-r) 70vh var(--gutter-l);cursor:pointer;scrollbar-width:thin}
 .sheet{touch-action:pan-y;position:relative}
 .sheet pre{margin:0;font-family:var(--mono);font-size:26px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
 html[data-mode="outdoor"] .sheet .c{font-weight:700}
@@ -80,16 +104,20 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .toggle{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--fg);cursor:pointer}
 .toggle input{width:22px;height:22px;accent-color:var(--accent)}
 .sheet .c{color:var(--chord);font-weight:600}
+.sheet .pair{display:block}
+.sheet .cell{display:inline-block;vertical-align:bottom;white-space:pre}
+.sheet .cell .ch{display:block;color:var(--chord);font-weight:600;min-height:1.42em}
+.sheet .cell .ly{display:block;min-height:1.42em}
 .sheet .s{color:var(--section);font-weight:600;display:inline-block;margin-top:.6em;letter-spacing:.02em}
 .sheet .end{display:block;margin-top:2em;color:var(--muted);font-size:.6em;font-family:var(--sans);letter-spacing:.1em;text-transform:uppercase}
-.bar{flex:none;display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
+.bar{flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
 .bar .title{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;line-height:1.2}
 .bar .title .t{font-weight:600;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar .title .k{font-family:var(--mono);color:var(--chord);font-size:13px;font-variant-numeric:tabular-nums}
 .grp{display:flex;align-items:center;gap:6px}
 .grp .val{font-family:var(--mono);font-variant-numeric:tabular-nums;min-width:3ch;text-align:center;font-size:15px}
-.grp.speed{flex:1 1 180px;min-width:150px}
-.grp.speed input[type=range]{flex:1;min-width:0;padding:0;accent-color:var(--accent);height:46px;background:transparent;border:0}
+.grp.speed{flex:1 1 220px;min-width:200px}
+.grp.speed input[type=range]{flex:1 1 90px;min-width:90px;padding:0;accent-color:var(--accent);height:46px;background:transparent;border:0}
 #btnPlay{min-width:130px;font-size:17px}
 #btnPlay.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
 
@@ -110,7 +138,8 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   .bar .lbl{display:none}
   .bar button{min-height:40px;padding:0 10px}
   .bar button.icon{min-width:40px}
-  .bar .title{flex:1 1 120px}
+  .bar select{min-height:40px}
+  .zone{padding:4px 6px;gap:6px}
   .bar .title .t{font-size:15px}
   #btnPlay{min-width:104px;font-size:15px}
   .grp.speed{flex:1 1 100%}
@@ -124,7 +153,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <header class="lib-head">
     <div>
       <h1>Stage Sheets</h1>
-      <div class="sub">Tap a song to put it on stage. Order here is your set order.</div>
+      <div class="sub">Tap a song to put it on stage. The order here is the order on stage.</div>
       <span id="syncChip" class="chip">Loading…</span>
     </div>
     <div class="lib-actions">
@@ -133,6 +162,8 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
       <button id="btnAdd" class="primary">+ Add song</button>
     </div>
   </header>
+  <div id="listBar" class="lists"></div>
+  <div id="listTools" class="list-tools" hidden></div>
   <ol id="songList" class="songs"></ol>
   <p class="hint">Paste sheets the way they're written everywhere: a line of chords like <code>G    D    Em    C</code> directly above the lyric line, in a monospace layout. Section names in brackets like <code>[Chorus]</code> get highlighted. On stage, tap anywhere on the sheet to start or stop scrolling.</p>
 </div>
@@ -141,18 +172,37 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div id="sheet" class="sheet"><pre id="sheetBody"></pre></div>
   <div id="count" class="count" hidden>3</div>
   <div class="bar">
-    <button id="btnPlay" class="primary">▶ Scroll</button>
-    <div class="grp speed"><span class="lbl">Speed</span><input type="range" id="speed" min="4" max="120" step="1" value="30" aria-label="Scroll speed"><span id="speedVal" class="val">30</span></div>
-    <button id="btnTop" class="icon" aria-label="Back to top">⤒</button>
-    <button id="btnBack">‹ Setlist</button>
-    <div class="title"><span id="stTitle" class="t"></span><span id="stKey" class="k"></span></div>
-    <button id="btnPrev" class="icon" aria-label="Previous song">‹</button>
-    <button id="btnNext" class="icon" aria-label="Next song">›</button>
-    <div class="grp"><span class="lbl">Key</span><button id="trDown" class="icon" aria-label="Transpose down">−</button><span id="trVal" class="val">0</span><button id="trUp" class="icon" aria-label="Transpose up">+</button></div>
-    <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
-    <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
-    <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
+    <div class="zone z-play" aria-label="Scrolling">
+      <button id="btnPlay" class="primary">▶ Scroll</button>
+      <div class="grp speed"><span class="lbl">Speed</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button><span id="speedVal" class="val">30</span></div>
+      <button id="btnTop" class="icon" aria-label="Back to top">⤒</button>
+      <button id="btnCount" aria-label="Count-in for this song">3·2·1</button>
+    </div>
+    <div class="zone z-nav" aria-label="Songs">
+      <button id="btnBack">‹ Setlist</button>
+      <button id="btnPrev" class="icon" aria-label="Previous song">‹</button>
+      <div class="title"><span id="stTitle" class="t"></span><span id="stKey" class="k"></span></div>
+      <button id="btnNext" class="icon" aria-label="Next song">›</button>
+    </div>
+    <div class="zone z-key" aria-label="Key">
+      <div class="grp"><span class="lbl">Singer</span><select id="singer" aria-label="Who is singing"></select></div>
+      <div class="grp"><span class="lbl">Key</span><button id="trDown" class="icon" aria-label="Transpose down">−</button><span id="trVal" class="val">0</span><button id="trUp" class="icon" aria-label="Transpose up">+</button></div>
+    </div>
+    <div class="zone z-view" aria-label="Display">
+      <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
+      <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
+      <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
+    </div>
   </div>
+</div>
+
+<div id="picker" class="wrap" hidden>
+  <header class="ed-head">
+    <button id="pkBack">‹ Back</button>
+    <h2 id="pkHeading">Songs in this list</h2>
+    <button id="pkDone" class="primary">Done</button>
+  </header>
+  <ul id="pickList" class="pick"></ul>
 </div>
 
 <div id="editor" class="wrap" hidden>
@@ -163,9 +213,10 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   </header>
   <div class="ed-form">
     <label class="wide">Title<input id="edTitle" placeholder="Song title" autocomplete="off"></label>
+    <label class="wide">Artist<input id="edArtist" placeholder="Who sings the original (optional)" autocomplete="off"></label>
     <label>Key<input id="edKey" placeholder="G" autocomplete="off"></label>
     <label>Capo<input id="edCapo" type="number" min="0" max="9" placeholder="0"></label>
-    <label>Scroll speed (px/s)<input id="edSpeed" type="number" min="4" max="120" value="30"></label>
+    <label>Scroll speed (px/s)<input id="edSpeed" type="number" min="1" max="120" value="30"></label>
     <div class="full ed-row">
       <button id="edPaste">Paste from clipboard</button>
       <button id="edClean">Clean up</button>
@@ -196,7 +247,7 @@ Paste your chord sheet here"></textarea></label>
   </div>
   <p id="setStatus" class="hint"></p>
   <h2 style="font-size:18px;margin:28px 0 10px">On stage</h2>
-  <label class="toggle"><input type="checkbox" id="setCountIn"> Count in 3-2-1 before scrolling starts</label>
+  <label class="toggle"><input type="checkbox" id="setCountIn"> Count in 3-2-1 before scrolling starts (the 3·2·1 button on stage overrides this per song; tap again during the count to start right away)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setHideBar"> Hide the controls while scrolling (tap the sheet to pause and bring them back)</label>
 </div>
 
@@ -206,7 +257,7 @@ Paste your chord sheet here"></textarea></label>
     <h2>Backup</h2>
     <span style="width:90px"></span>
   </header>
-  <p>A copy of the whole setlist as text. Keep it somewhere safe, or paste a backup here and press Load to replace all songs.</p>
+  <p>A copy of everything (songs, lists, singers) as text. Keep it somewhere safe, or paste a backup here and press Load to replace it all.</p>
   <textarea id="ioText" spellcheck="false"></textarea>
   <div class="row">
     <button id="ioCopy" class="primary">Copy</button>
@@ -222,15 +273,18 @@ const $=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,10);
 
 /* ---------- state: songs come from the shared store when it's available; browser storage is a cache and the fallback ---------- */
-let state={songs:[],font:26,curId:null};
+let state={songs:[],setlists:[],singers:[],font:26,curId:null,listId:'',singer:''};
+// songs.json: {songs:[...], setlists:[{id,name,ids:[songId]}], singers:["name"]}; an older plain array of songs still loads
+const parseFile=j=>Array.isArray(j)?{songs:j,setlists:[],singers:[]}:{songs:Array.isArray(j&&j.songs)?j.songs:[],setlists:Array.isArray(j&&j.setlists)?j.setlists:[],singers:Array.isArray(j&&j.singers)?j.singers:[]};
+const fileDoc=()=>({songs:state.songs.map(toDoc),setlists:state.setlists.map(l=>({id:l.id,name:l.name,ids:l.ids.slice()})),singers:state.singers.slice()});
 let online=false;
 const REPO='truelyeth/stage-sheets', FILE='songs.json', BRANCH='main';
 const API='https://api.github.com/repos/'+REPO+'/contents/'+FILE;
 const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
-function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&d.font) state.font=d.font;}}catch(e){} }
-function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,font:state.font}));}catch(e){} }
-const toDoc=s=>({id:s.id,title:s.title||'Untitled',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''});
+function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
+function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -242,11 +296,10 @@ async function ghGet(){
   const r=await fetch(API+'?ref='+BRANCH+'&t='+Date.now(),{headers:ghHeaders(),cache:'no-store'});
   if(!r.ok) throw new Error('GitHub '+r.status);
   const j=await r.json(); fileSha=j.sha;
-  const arr=JSON.parse(b64dec(j.content)); if(!Array.isArray(arr)) throw new Error('bad file');
-  return arr;
+  return parseFile(JSON.parse(b64dec(j.content)));
 }
-async function ghPut(songs,msg){
-  const body={message:msg,branch:BRANCH,content:b64enc(JSON.stringify(songs,null,1)),sha:fileSha||undefined};
+async function ghPut(doc,msg){
+  const body={message:msg,branch:BRANCH,content:b64enc(JSON.stringify(doc,null,1)),sha:fileSha||undefined};
   const send=()=>fetch(API,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},ghHeaders()),body:JSON.stringify(body)});
   let r=await send();
   if(r.status===409||r.status===422){ await ghGet(); body.sha=fileSha; r=await send(); }
@@ -263,17 +316,26 @@ function persist(msg){
 async function flush(){
   if(pushing||!pushPending) return;
   pushing=true; const msg=pushPending; pushPending=null; setChip('Saving…',true);
-  try{ await ghPut(state.songs.map(toDoc),msg); online=true; setChip('Saved to GitHub',true); }
+  try{ await ghPut(fileDoc(),msg); online=true; for(const x of state.songs) x.fromFile=true; saveLocal(); setChip('Saved to GitHub',true); }
   catch(e){ online=false; setChip('GitHub save failed — kept on this device'); toast('Could not save to GitHub ('+e.message+')'); }
   pushing=false; if(pushPending) flush();
 }
 let siteEtag=null, ghEtag=null;
-function applyRemote(file,fromGit){
+function applyRemote(remote,fromGit){
+  const file=remote.songs;
   const byId=new Map(state.songs.map(s=>[s.id,s]));
-  const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(!fromGit&&l){ if(l.speed) s.speed=l.speed; s.tr=l.tr||0; } return s; });
-  if(!fromGit){ const ids=new Set(merged.map(s=>s.id)); for(const l of state.songs) if(!ids.has(l.id)&&!l.fromFile) merged.push(l); }
-  const changed=JSON.stringify(merged.map(toDoc))!==JSON.stringify(state.songs.map(toDoc));
-  state.songs=merged; saveLocal();
+  const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(!fromGit&&l){ if(l.speed) s.speed=l.speed; s.tr=l.tr||0; if(l.keys) s.keys=Object.assign({},s.keys||{},l.keys); } return s; });
+  // songs added on this device before it was connected: keep them, and if we can write, commit them now
+  const ids=new Set(merged.map(s=>s.id)); const localOnly=state.songs.filter(l=>!ids.has(l.id)&&!l.fromFile);
+  for(const l of localOnly) merged.push(l);
+  const before=JSON.stringify(fileDoc());
+  state.songs=merged;
+  const rids=new Set(remote.setlists.map(l=>l.id));
+  state.setlists=remote.setlists.map(l=>({id:l.id,name:l.name||'List',ids:(l.ids||[]).filter(id=>ids.has(id)||localOnly.some(x=>x.id===id))})).concat(state.setlists.filter(l=>!rids.has(l.id)&&l.local));
+  state.singers=Array.from(new Set(remote.singers.concat(state.singers.filter(n=>!remote.singers.includes(n)))));
+  const changed=JSON.stringify(fileDoc())!==before;
+  saveLocal();
+  if(fromGit&&localOnly.length){ persist('Add '+localOnly.map(l=>l.title||'song').join(', ')); toast('Uploading '+localOnly.length+' song'+(localOnly.length>1?'s':'')+' from this device'); }
   if(changed){
     if(!screens.library.hidden) renderLibrary();
     if(!screens.stage.hidden){ if(curIndex()<0){ show('library'); renderLibrary(); } else { const c=cur(); speedIn.value=c.speed; speedVal.textContent=c.speed; renderSheet(true); } }
@@ -286,10 +348,10 @@ async function fetchRemote(){
     if(r.status===304) return null;
     if(!r.ok) throw new Error('GitHub '+r.status);
     ghEtag=r.headers.get('ETag'); const j=await r.json(); fileSha=j.sha;
-    const arr=JSON.parse(b64dec(j.content)); if(!Array.isArray(arr)) throw new Error('bad file'); return arr;
+    return parseFile(JSON.parse(b64dec(j.content)));
   }
   const r=await fetch(FILE+'?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error(r.status);
-  const arr=await r.json(); if(!Array.isArray(arr)) throw new Error('bad'); return arr;
+  return parseFile(await r.json());
 }
 async function connect(){
   try{
@@ -310,7 +372,7 @@ setInterval(()=>{ if(token()||Date.now()%60000<15000) poll(); },15000);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') poll(); });
 async function writeSong(s){
   const i=state.songs.findIndex(x=>x.id===s.id);
-  if(i>=0) state.songs[i]=Object.assign(state.songs[i],s); else state.songs.push(s);
+  if(i>=0) state.songs[i]=Object.assign(state.songs[i],s); else { s.fromFile=false; state.songs.push(s); }
   persist((i>=0?'Update ':'Add ')+(s.title||'song'));
 }
 async function deleteSong(id){
@@ -342,12 +404,65 @@ function prefersFlats(body){
   return f>s;
 }
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderChordLine(line,n,flats){
+  // rebuild the line token by token, keeping each chord at its original column so it stays over the right syllable
+  let out='', col=0, m; const re=/\S+/g;
+  while((m=re.exec(line))){
+    const want=m.index, t=m[0];
+    const spaces=Math.max(want-col, col>0?1:0);
+    out+=' '.repeat(spaces); col+=spaces;
+    if(CHORD.test(t)){ const tt=trTok(t,n,flats); out+='<span class="c">'+esc(tt)+'</span>'; col+=tt.length; }
+    else { out+=esc(t); col+=t.length; }
+  }
+  return out;
+}
+function transposeLinePlain(line,n,flats){
+  // same column-preserving rebuild as renderChordLine, but plain text, so it can be sliced
+  let out='', col=0, m; const re=/\S+/g;
+  while((m=re.exec(line))){
+    const want=m.index, t=m[0];
+    const spaces=Math.max(want-col, col>0?1:0);
+    out+=' '.repeat(spaces); col+=spaces;
+    const tt=CHORD.test(t)?trTok(t,n,flats):t; out+=tt; col+=tt.length;
+  }
+  return out;
+}
+const markChords=txt=>esc(txt).replace(/\S+/g,t=>CHORD.test(t)?'<span class="c">'+t+'</span>':t);
+function renderPair(cl,ll,n,flats){
+  // chords sit at fixed columns over the lyric; cut both lines into word-sized cells that wrap together,
+  // never cutting through a chord name, so each chord stays over the syllable it was written on
+  const tcl=transposeLinePlain(cl,n,flats);
+  const words=[]; let m; const re=/\S+/g; while((m=re.exec(ll))) words.push({s:m.index,e:m.index+m[0].length});
+  const chords=[]; const rc=/\S+/g; while((m=rc.exec(tcl))) chords.push({s:m.index,e:m.index+m[0].length});
+  const cells=[]; let a=0, i=0;
+  while(i<words.length){
+    // a cell starts at the word, or earlier if a chord was written in the gap before it
+    const gapChord=chords.find(c=>c.s>=a&&c.s<words[i].s); const start=gapChord?Math.min(gapChord.s,words[i].s):words[i].s;
+    let b=words[i].e;
+    for(;;){
+      const cross=chords.find(c=>c.s<b&&c.e>b);
+      if(!cross) break;
+      if(i+1<words.length&&cross.e>words[i+1].s){ i++; b=words[i].e; }   // chord runs into the next word: merge the words
+      else b=cross.e;
+    }
+    cells.push([start,b]); a=b; i++;
+  }
+  const tailEnd=Math.max(tcl.replace(/\s+$/,'').length,ll.replace(/\s+$/,'').length);
+  if(a<tailEnd) cells.push([a,tailEnd]);
+  return '<span class="pair">'+cells.map(([x,y])=>'<span class="cell"><span class="ch">'+markChords(tcl.slice(x,y).replace(/\s+$/,''))+'</span><span class="ly">'+esc(ll.slice(x,y).replace(/\s+$/,''))+'</span></span>').join(' ')+'</span>';
+}
 function renderBody(body,n){
   const flats=prefersFlats(body);
   const out=[];
-  for(const line of body.replace(/\r/g,'').split('\n')){
+  const lines=body.replace(/\r/g,'').split('\n');
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
     if(SECTION.test(line)) out.push('<span class="s">'+esc(line.trim())+'</span>');
-    else if(isChordLine(line)) out.push(line.replace(/\S+/g,t=>CHORD.test(t)?'<span class="c">'+esc(trTok(t,n,flats))+'</span>':esc(t)));
+    else if(isChordLine(line)){
+      const next=lines[i+1];
+      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ out.push(renderPair(line,next,n,flats)); i++; }
+      else out.push(renderChordLine(line,n,flats));
+    }
     else out.push(esc(line));
   }
   out.push('<span class="end">— end —</span>');
@@ -355,7 +470,7 @@ function renderBody(body,n){
 }
 
 /* ---------- screens ---------- */
-const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$('#io'),settings:$('#settings')};
+const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$('#io'),settings:$('#settings'),picker:$('#picker')};
 function show(name){
   for(const k in screens) screens[k].hidden=(k!==name);
   document.body.style.overflow=(name==='stage')?'hidden':'';
@@ -364,42 +479,91 @@ function show(name){
 let toastT=0;
 function toast(msg){ let t=$('.toast'); if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{t.hidden=true;},2000); }
 
-/* ---------- library ---------- */
-const list=$('#songList');
+/* ---------- library: all songs, or one setlist ---------- */
+const list=$('#songList'), listBar=$('#listBar'), listTools=$('#listTools');
+const curList=()=>state.setlists.find(l=>l.id===state.listId)||null;
+function visibleSongs(){ const l=curList(); if(!l) return state.songs; const by=new Map(state.songs.map(s=>[s.id,s])); return l.ids.map(id=>by.get(id)).filter(Boolean); }
+function effTr(s){ return (state.singer&&s.keys&&s.keys[state.singer]!=null)?s.keys[state.singer]:(s.tr||0); }
 function renderLibrary(){
+  // list chips
+  listBar.innerHTML='';
+  const mk=(label,id,extra)=>{ const b=document.createElement('button'); b.textContent=label; b.dataset.list=id; if(id===state.listId) b.classList.add('on'); if(extra) extra(b); listBar.appendChild(b); };
+  mk('All songs','');
+  state.setlists.forEach(l=>mk(l.name+' ('+l.ids.length+')',l.id));
+  const sep=document.createElement('span'); sep.className='sep'; listBar.appendChild(sep);
+  const nb=document.createElement('button'); nb.textContent='+ New list'; nb.id='btnNewList'; listBar.appendChild(nb);
+  const l=curList();
+  listTools.hidden=!l;
+  if(l) listTools.innerHTML=`<button id="btnPick" class="primary">Choose songs</button><button id="btnRenameList">Rename</button><button id="btnDelList" class="danger">Delete list</button>`;
+  const songs=visibleSongs();
   list.innerHTML='';
-  if(!state.songs.length){ list.innerHTML='<li class="empty">No songs yet. Add one and paste its chord sheet.</li>'; return; }
-  state.songs.forEach((s,i)=>{
+  if(!songs.length){ list.innerHTML='<li class="empty">'+(l?'This list is empty. Tap "Choose songs" to add some.':'No songs yet. Add one and paste its chord sheet.')+'</li>'; return; }
+  songs.forEach((s,i)=>{
+    const tr=effTr(s);
     const li=document.createElement('li'); li.className='song';
-    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}</span><span class="meta"><span class="key">${esc(s.key||'')}${s.tr?' '+(s.tr>0?'+':'')+s.tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
+    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(s.key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
       <div class="tools"><button data-up="${i}" aria-label="Move up">▲</button><button data-down="${i}" aria-label="Move down">▼</button></div>
-      <div class="tools"><button data-edit="${i}" aria-label="Edit">Edit</button></div>`;
+      <div class="tools"><button data-edit="${s.id}" aria-label="Edit">Edit</button></div>`;
     list.appendChild(li);
   });
 }
 function swapOrder(i,j){
-  if(!state.songs[i]||!state.songs[j]) return;
-  [state.songs[i],state.songs[j]]=[state.songs[j],state.songs[i]];
-  renderLibrary(); persist('Reorder setlist');
+  const l=curList(); const arr=l?l.ids:state.songs;
+  if(!arr[i]||!arr[j]) return;
+  [arr[i],arr[j]]=[arr[j],arr[i]];
+  renderLibrary(); persist(l?'Reorder '+l.name:'Reorder songs');
 }
 list.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.i!=null) openStage(+b.dataset.i);
-  else if(b.dataset.edit!=null) openEditor(+b.dataset.edit);
+  else if(b.dataset.edit!=null) openEditor(b.dataset.edit);
   else if(b.dataset.up!=null){ const i=+b.dataset.up; if(i>0) swapOrder(i,i-1); }
-  else if(b.dataset.down!=null){ const i=+b.dataset.down; if(i<state.songs.length-1) swapOrder(i,i+1); }
+  else if(b.dataset.down!=null){ const i=+b.dataset.down; if(i<visibleSongs().length-1) swapOrder(i,i+1); }
 });
-$('#btnAdd').onclick=()=>openEditor(-1);
+listBar.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='btnNewList'){
+    const name=(prompt('Name for the new list (e.g. Open mic, Busking)')||'').trim(); if(!name) return;
+    const nl={id:uid(),name,ids:[],local:!token()}; state.setlists.push(nl); state.listId=nl.id; saveLocal(); persist('New list: '+name); renderLibrary(); openPicker();
+  } else { state.listId=b.dataset.list||''; saveLocal(); renderLibrary(); }
+});
+listTools.addEventListener('click',e=>{
+  const b=e.target.closest('button'); const l=curList(); if(!b||!l) return;
+  if(b.id==='btnPick') openPicker();
+  else if(b.id==='btnRenameList'){ const name=(prompt('Rename list',l.name)||'').trim(); if(name&&name!==l.name){ l.name=name; persist('Rename list: '+name); renderLibrary(); } }
+  else if(b.id==='btnDelList'){ if(b.textContent!=='Really delete?'){ b.textContent='Really delete?'; return; } state.setlists=state.setlists.filter(x=>x.id!==l.id); state.listId=''; persist('Delete list: '+l.name); renderLibrary(); toast('List deleted (songs are still in All songs)'); }
+});
+// pick which songs are in the list; order stays as it was, new picks go to the end
+function openPicker(){
+  const l=curList(); if(!l) return;
+  $('#pkHeading').textContent=l.name;
+  const ul=$('#pickList'); ul.innerHTML='';
+  state.songs.forEach(s=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<label><input type="checkbox" value="${s.id}" ${l.ids.includes(s.id)?'checked':''}> <span>${esc(s.title||'Untitled')}${s.artist?' · '+esc(s.artist):''}</span><span class="k">${esc(s.key||'')}</span></label>`;
+    ul.appendChild(li);
+  });
+  show('picker'); window.scrollTo(0,0);
+}
+$('#pkBack').onclick=()=>{ show('library'); renderLibrary(); };
+$('#pkDone').onclick=()=>{
+  const l=curList(); if(!l) return;
+  const on=new Set(Array.from(document.querySelectorAll('#pickList input:checked')).map(i=>i.value));
+  const kept=l.ids.filter(id=>on.has(id)); for(const id of on) if(!kept.includes(id)) kept.push(id);
+  l.ids=kept; persist('Update list: '+l.name); show('library'); renderLibrary();
+};
+$('#btnAdd').onclick=()=>openEditor(null);
 
 /* ---------- editor ---------- */
 let editingId=null;
-function openEditor(i){
-  const s=i>=0?state.songs[i]:{title:'',key:'',speed:30,body:''};
-  editingId=i>=0?s.id:null;
-  $('#edHeading').textContent=i>=0?'Edit song':'New song';
-  $('#edTitle').value=s.title; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
-  $('#edDup').hidden=(i<0);
-  $('#edDelete').hidden=(i<0)||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
+function openEditor(id){
+  const s=id?state.songs.find(x=>x.id===id):{title:'',artist:'',key:'',speed:30,body:''};
+  if(!s) return;
+  editingId=id||null;
+  $('#edHeading').textContent=id?'Edit song':'New song';
+  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
+  $('#edDup').hidden=!id;
+  $('#edDelete').hidden=!id||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
   show('editor'); window.scrollTo(0,0);
 }
 $('#edCancel').onclick=()=>{ show('library'); renderLibrary(); };
@@ -407,9 +571,11 @@ $('#edSave').onclick=async function(){
   this.disabled=true;
   const prev=editingId?state.songs.find(x=>x.id===editingId):null;
   const s=Object.assign({},prev||{id:uid(),tr:0},{
-    title:$('#edTitle').value.trim()||'Untitled', key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
-    speed:Math.min(120,Math.max(4,+$('#edSpeed').value||30)), body:$('#edBody').value });
+    title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
+    speed:Math.min(120,Math.max(1,+$('#edSpeed').value||30)), body:$('#edBody').value });
+  const isNew=!prev;
   await writeSong(s);
+  const l=curList(); if(isNew&&l&&!l.ids.includes(s.id)){ l.ids.push(s.id); persist('Add '+s.title+' to '+l.name); }
   this.disabled=false; show('library'); renderLibrary(); toast('Saved');
 };
 $('#edDup').onclick=async function(){
@@ -436,7 +602,7 @@ function cleanSheet(text){
   // title: a plain first line before the first section or chord line, "Song - Artist" style
   if(keep.length){
     const first=keep.findIndex(x=>x.trim()!=='');
-    if(first>=0){ const f=keep[first].trim(); if(!SECTION.test(f)&&!isChordLine(f)&&f.length<70&&/[-–—]|\bby\b/i.test(f)){ meta.title=f.split(/\s[-–—]\s|\sby\s/i)[0].trim(); keep.splice(first,1); } }
+    if(first>=0){ const f=keep[first].trim(); if(!SECTION.test(f)&&!isChordLine(f)&&f.length<70&&/[-–—]|\bby\b/i.test(f)){ const bits=f.split(/\s[-–—]\s|\sby\s/i); meta.title=bits[0].trim(); if(bits[1]) meta.artist=bits[1].replace(/\s*(chords|tab|tabs)\s*$/i,'').trim(); keep.splice(first,1); } }
   }
   let body=keep.join('\n').replace(/\n{3,}/g,'\n\n').replace(/^\n+|\n+$/g,'');
   if(!meta.key){ // guess: the last chord played is usually the tonic
@@ -449,6 +615,7 @@ function applyClean(){
   const {body,meta}=cleanSheet($('#edBody').value);
   $('#edBody').value=body;
   if(meta.title&&!$('#edTitle').value.trim()) $('#edTitle').value=meta.title;
+  if(meta.artist&&!$('#edArtist').value.trim()) $('#edArtist').value=meta.artist;
   if(meta.key&&!$('#edKey').value.trim()) $('#edKey').value=meta.key;
   if(meta.capo!=null&&!$('#edCapo').value) $('#edCapo').value=meta.capo;
   toast('Cleaned up'+(meta.capo?' · capo '+meta.capo:'')+(meta.key?' · key '+meta.key:''));
@@ -465,7 +632,7 @@ $('#edDelete').onclick=async function(){
 };
 
 /* ---------- backup ---------- */
-$('#btnIO').onclick=()=>{ $('#ioText').value=JSON.stringify(state.songs.map(toDoc),null,1); show('io'); window.scrollTo(0,0); };
+$('#btnIO').onclick=()=>{ $('#ioText').value=JSON.stringify(fileDoc(),null,1); show('io'); window.scrollTo(0,0); };
 $('#ioBack').onclick=()=>{ show('library'); renderLibrary(); };
 $('#ioCopy').onclick=()=>{
   const ta=$('#ioText');
@@ -473,10 +640,10 @@ $('#ioCopy').onclick=()=>{
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(()=>toast('Copied'),fallback); else fallback();
 };
 $('#ioLoad').onclick=async function(){
-  let d; try{ d=JSON.parse($('#ioText').value); }catch(e){ toast('That is not valid backup text'); return; }
-  if(!Array.isArray(d)||!d.every(s=>s&&typeof s.body==='string')){ toast('That is not valid backup text'); return; }
+  let d; try{ d=parseFile(JSON.parse($('#ioText').value)); }catch(e){ toast('That is not valid backup text'); return; }
+  if(!d.songs.every(s=>s&&typeof s.body==='string')){ toast('That is not valid backup text'); return; }
   if(this.textContent!=='Really replace all songs?'){ this.textContent='Really replace all songs?'; return; }
-  state.songs=d.map(s=>({id:s.id||uid(),title:s.title||'Untitled',key:s.key||'',speed:s.speed||30,tr:s.tr||0,body:s.body}));
+  state.songs=d.songs.map(s=>Object.assign({},s,{id:s.id||uid()})); state.setlists=d.setlists; state.singers=d.singers; state.listId='';
   persist('Restore setlist from backup');
   this.textContent='Load'; show('library'); renderLibrary(); toast('Loaded '+state.songs.length+' songs');
 };
@@ -501,12 +668,13 @@ $('#setClear').onclick=()=>{ try{ localStorage.removeItem(TOKEN_KEY); }catch(e){
 /* ---------- stage ---------- */
 const sheet=$('#sheet'), pre=$('#sheetBody'), speedIn=$('#speed'), speedVal=$('#speedVal'), btnPlay=$('#btnPlay');
 let playing=false, raf=0, last=0, pos=0;
-const curIndex=()=>state.songs.findIndex(s=>s.id===state.curId);
-function cur(){ return state.songs[curIndex()]; }
+const curIndex=()=>visibleSongs().findIndex(s=>s.id===state.curId);
+function cur(){ return visibleSongs()[curIndex()]; }
 function openStage(i){
-  if(!state.songs.length) return;
-  const n=state.songs.length; i=((i%n)+n)%n;
-  state.curId=state.songs[i].id;
+  const vs=visibleSongs(); if(!vs.length) return;
+  const n=vs.length; i=((i%n)+n)%n;
+  state.curId=vs[i].id;
+  renderSingers();
   const s=cur();
   stopScroll();
   renderSheet(false);
@@ -515,16 +683,17 @@ function openStage(i){
   show('stage');
   sheet.scrollTop=0; pos=0;
   requestWake();
-  (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(autoFit);
 }
 let lastRendered='';
 function renderSheet(keepPos){
-  const s=cur(); if(!s) return; const n=s.tr||0;
+  const s=cur(); if(!s) return; const n=effTr(s);
   const html=renderBody(s.body||'',n);
+  $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
-  $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled');
+  $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
   let k=s.key||'';
   const parts=[];
+  if(state.singer) parts.push('Singer: '+state.singer);
   if(k&&n){ const m=k.match(/^([A-G](?:#|b)?)(.*)$/); if(m) k=trRoot(m[1],n,prefersFlats(s.body||''))+m[2]; parts.push(k+' (was '+s.key+')'); }
   else if(k) parts.push(k);
   if(s.capo) parts.push('Capo '+s.capo);
@@ -534,7 +703,7 @@ function renderSheet(keepPos){
   $('#trVal').textContent=(n>0?'+':'')+n;
 }
 function applyFont(){ pre.style.fontSize=state.font+'px'; }
-window.addEventListener('resize',()=>{ if(!screens.stage.hidden){ applyFont(); autoFit(); } });
+
 function setFont(f){ state.font=Math.max(14,Math.min(60,Math.round(f))); applyFont(); saveLocal(); }
 $('#fsUp').onclick=()=>setFont(state.font+2);
 $('#fsDown').onclick=()=>setFont(state.font-2);
@@ -547,14 +716,35 @@ function fitSize(){
   return 100*avail/maxW;
 }
 $('#fsFit').onclick=()=>{ const f=fitSize(); if(f){ setFont(f); toast('Fit to '+state.font+'px'); } };
-function autoFit(){ const f=fitSize(); if(f&&f<state.font){ pre.style.fontSize=Math.max(12,Math.floor(f))+'px'; } }
-async function setTr(n){ const s=cur(); s.tr=Math.max(-11,Math.min(11,n)); renderSheet(true); await writeSong(s); }
-$('#trUp').onclick=()=>setTr((cur().tr||0)+1);
-$('#trDown').onclick=()=>setTr((cur().tr||0)-1);
+
+// transpose is remembered per song, and separately per singer when one is chosen
+async function setTr(n){ const s=cur(); n=Math.max(-11,Math.min(11,n)); if(state.singer){ s.keys=s.keys||{}; s.keys[state.singer]=n; } else s.tr=n; renderSheet(true); await writeSong(s); }
+$('#trUp').onclick=()=>setTr(effTr(cur())+1);
+$('#trDown').onclick=()=>setTr(effTr(cur())-1);
+const singerSel=$('#singer');
+function renderSingers(){
+  singerSel.innerHTML='<option value="">Me</option>'+state.singers.map(n=>`<option value="${esc(n)}" ${n===state.singer?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__add">Add singer…</option>';
+  if(!state.singers.includes(state.singer)) { state.singer=''; }
+  singerSel.value=state.singer;
+}
+singerSel.addEventListener('change',()=>{
+  if(singerSel.value==='__add'){
+    const name=(prompt('Singer name')||'').trim();
+    if(name&&!state.singers.includes(name)){ state.singers.push(name); state.singer=name; persist('Add singer '+name); }
+    else if(name) state.singer=name;
+  } else state.singer=singerSel.value;
+  saveLocal(); renderSingers(); renderSheet(true); toast(state.singer?'Keys for '+state.singer:'Your keys');
+});
+// count-in: the song's own setting wins over the general one
+function countInFor(s){ return (s&&(s.countin===true||s.countin===false))?s.countin:pref('countin',true); }
+$('#btnCount').onclick=async()=>{ const s=cur(); s.countin=!countInFor(s); renderSheet(true); toast(s.countin?'Count-in on for this song':'Count-in off for this song'); await writeSong(s); };
 speedIn.addEventListener('input',()=>{ const v=+speedIn.value; speedVal.textContent=v; const s=cur(); if(s) s.speed=v; });
 let speedT=0;
 function commitSpeed(){ clearTimeout(speedT); speedT=setTimeout(()=>{ const s=cur(); if(s) writeSong(s); },600); }
 speedIn.addEventListener('change',commitSpeed);
+function nudgeSpeed(d){ speedIn.value=Math.min(120,Math.max(1,+speedIn.value+d)); speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
+$('#spDown').onclick=()=>nudgeSpeed(-1);
+$('#spUp').onclick=()=>nudgeSpeed(1);
 
 function tick(t){
   if(!playing) return;
@@ -567,15 +757,17 @@ function tick(t){
 }
 const bar=$('.bar'), countEl=$('#count');
 let countT=0, counting=false, hideT=0;
-function reallyStart(){ playing=true; pos=sheet.scrollTop; last=performance.now(); btnPlay.textContent='❚❚ Pause'; btnPlay.classList.add('on'); raf=requestAnimationFrame(tick); if(pref('hidebar',true)) hideT=setTimeout(()=>bar.classList.add('hide'),1200); }
+function reallyStart(){ playing=true; startedAt=performance.now(); pos=sheet.scrollTop; last=performance.now(); btnPlay.textContent='❚❚ Pause'; btnPlay.classList.add('on'); raf=requestAnimationFrame(tick); if(pref('hidebar',true)) hideT=setTimeout(()=>bar.classList.add('hide'),1200); }
+let startedAt=0;
 function startScroll(){
-  if(playing||counting) return;
-  if(!pref('countin',true)){ reallyStart(); return; }
+  if(playing) return;
+  if(counting){ clearInterval(countT); counting=false; countEl.hidden=true; reallyStart(); return; }   // second tap during the count: go now
+  if(!countInFor(cur())){ reallyStart(); return; }
   counting=true; let n=3; countEl.textContent=n; countEl.hidden=false; btnPlay.textContent='…'; 
   countT=setInterval(()=>{ n--; if(n>0){ countEl.textContent=n; } else { clearInterval(countT); counting=false; countEl.hidden=true; reallyStart(); } },1000);
 }
 function stopScroll(){ playing=false; cancelAnimationFrame(raf); clearInterval(countT); counting=false; countEl.hidden=true; clearTimeout(hideT); bar.classList.remove('hide'); btnPlay.textContent='▶ Scroll'; btnPlay.classList.remove('on'); }
-function toggleScroll(){ (playing||counting)?stopScroll():startScroll(); }
+function toggleScroll(){ if(counting){ startScroll(); return; } if(playing){ if(performance.now()-startedAt<500) return; stopScroll(); } else startScroll(); }
 function applyMode(){ document.documentElement.dataset.mode=pref('outdoor',false)?'outdoor':''; if(!pref('outdoor',false)) delete document.documentElement.dataset.mode; }
 $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyMode(); toast(pref('outdoor',false)?'Outdoor mode on':'Outdoor mode off'); };
 applyMode();
@@ -610,8 +802,8 @@ document.addEventListener('keydown',e=>{
   if(screens.stage.hidden) return;
   if(e.target.tagName==='INPUT') return;
   if(e.key===' '){ e.preventDefault(); toggleScroll(); }
-  else if(e.key==='ArrowUp'){ speedIn.value=+speedIn.value+2; speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
-  else if(e.key==='ArrowDown'){ speedIn.value=+speedIn.value-2; speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
+  else if(e.key==='ArrowUp') nudgeSpeed(1);
+  else if(e.key==='ArrowDown') nudgeSpeed(-1);
   else if(e.key==='ArrowRight') openStage(curIndex()+1);
   else if(e.key==='ArrowLeft') openStage(curIndex()-1);
   else if(e.key==='Escape'){ show('library'); renderLibrary(); }
