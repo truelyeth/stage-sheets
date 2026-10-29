@@ -697,8 +697,11 @@ function renderSheet(keepPos){
   if(k&&n){ const m=k.match(/^([A-G](?:#|b)?)(.*)$/); if(m) k=trRoot(m[1],n,prefersFlats(s.body||''))+m[2]; parts.push(k+' (was '+s.key+')'); }
   else if(k) parts.push(k);
   if(s.capo) parts.push('Capo '+s.capo);
-  if(n>0&&n<=7) parts.push('or capo '+n+(s.capo?' more':'')+' with the original shapes');
-  else if(n<0&&12+n<=7) parts.push('or capo '+(12+n)+' with the original shapes');
+  if(n){ // same sound with the original chord shapes: move the capo by the transposition instead
+    const alt=(s.capo||0)+n;
+    if(alt===0) parts.push('or original chords, no capo');
+    else if(alt>0&&alt<=7) parts.push('or original chords with capo '+alt);
+  }
   $('#stKey').textContent=parts.join('  ·  ');
   $('#trVal').textContent=(n>0?'+':'')+n;
 }
