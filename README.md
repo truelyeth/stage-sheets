@@ -21,3 +21,10 @@ committed to `songs.json` here, and Vercel redeploys. Devices without a token re
 and keep their own tweaks locally.
 
 You can also edit `songs.json` by hand and push.
+
+## Import from Ultimate Guitar
+
+Open Sync in the app: there is a "Send to Stage Sheets" bookmark. Drag it to the bookmarks bar
+(laptop) or save its address as a bookmark named `send` (Chrome on the tablet). On any UG chord
+page, click the bookmark: the song lands in the app with title, artist, key and capo filled in.
+It runs in your own browser, so it uses your UG login and never touches a server.

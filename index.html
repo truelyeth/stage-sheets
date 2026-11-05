@@ -248,6 +248,12 @@ Paste your chord sheet here"></textarea></label>
     <button id="setClear">Remove token</button>
   </div>
   <p id="setStatus" class="hint"></p>
+  <h2 style="font-size:18px;margin:28px 0 10px">Import from Ultimate Guitar</h2>
+  <p>One tap on any Ultimate Guitar chord page sends the song here, in the right format, with title, artist, key and capo filled in. It runs in your own browser, so it works with your subscription and Pro tabs. Set it up once per device:</p>
+  <p><a id="bmLink" href="#" draggable="true" style="display:inline-block;padding:10px 16px;border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:600;text-decoration:none">★ Send to Stage Sheets</a></p>
+  <p><strong>Laptop:</strong> drag that button onto your bookmarks bar. On a UG song page, click it.<br>
+  <strong>Tablet (Chrome):</strong> tap Copy below, bookmark any page (★ in the menu), then edit that bookmark: name it <code>send</code> and replace its address with what you copied. On a UG song page in Chrome (the website, not the UG app), tap the address bar, type <code>send</code>, tap the bookmark.</p>
+  <div class="row"><button id="bmCopy">Copy bookmark address</button></div>
   <h2 style="font-size:18px;margin:28px 0 10px">On stage</h2>
   <label class="toggle"><input type="checkbox" id="setCountIn"> Count in 3-2-1 before scrolling starts (the 3·2·1 button on stage overrides this per song; tap again during the count to start right away)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setHideBar"> Hide the controls while scrolling (tap the sheet to pause and bring them back)</label>
@@ -650,6 +656,33 @@ $('#ioLoad').onclick=async function(){
   this.textContent='Load'; show('library'); renderLibrary(); toast('Loaded '+state.songs.length+' songs');
 };
 
+/* ---------- import from Ultimate Guitar via bookmarklet ---------- */
+// The bookmarklet runs on the UG page in the user's browser: reads the song out of the page's embedded JSON
+// (falling back to the visible text), and opens this site with the song in the URL hash. Nothing hits a server.
+const BOOKMARKLET=`javascript:(function(){try{var g=function(o,p){for(var i=0;i<p.length;i++){if(!o)return null;o=o[p[i]]}return o};var st=document.querySelector('.js-store');var j=null;try{j=st&&JSON.parse(st.getAttribute('data-content'))}catch(e){}var d=g(j,['store','page','data'])||{};var tab=d.tab||{},tv=d.tab_view||{};var body=g(tv,['wiki_tab','content']);if(!body){var pre=document.querySelector('pre');body=pre&&pre.innerText}if(!body){alert('No chord sheet found on this page');return}var o={title:tab.song_name||document.title.split(' CHORDS')[0].split(' Chords')[0],artist:tab.artist_name||'',key:tab.tonality_name||'',capo:g(tv,['meta','capo'])||0,body:body};location.href=${JSON.stringify(location.origin+location.pathname)}+'#import='+encodeURIComponent(JSON.stringify(o))}catch(e){alert('Could not read this page: '+e.message)}})();`;
+$('#bmLink').href=BOOKMARKLET;
+$('#bmLink').onclick=e=>{ e.preventDefault(); toast('Drag this to your bookmarks bar, or use Copy below'); };
+$('#bmCopy').onclick=()=>{
+  const fallback=()=>{ const ta=document.createElement('textarea'); ta.value=BOOKMARKLET; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); toast('Copied'); }catch(e){ toast('Copy failed — long-press the button above'); } ta.remove(); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(BOOKMARKLET).then(()=>toast('Copied'),fallback); else fallback();
+};
+async function importFromHash(){
+  const m=location.hash.match(/^#import=(.+)$/); if(!m) return;
+  history.replaceState(null,'',location.pathname+location.search);
+  let o; try{ o=JSON.parse(decodeURIComponent(m[1])); }catch(e){ toast('Import failed: could not read the song'); return; }
+  const {body,meta}=cleanSheet(String(o.body||''));
+  if(!body.trim()){ toast('Import failed: empty sheet'); return; }
+  const title=String(o.title||meta.title||'Untitled').trim(), artist=String(o.artist||meta.artist||'').trim();
+  const key=String(o.key||meta.key||'').trim(), capo=Math.max(0,Math.min(9,+o.capo||meta.capo||0));
+  const same=(a,b)=>(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
+  const ex=state.songs.find(s=>same(s.title,title)&&same(s.artist,artist));
+  const song=Object.assign({},ex||{id:uid(),tr:0,speed:30},{title,artist,key,capo,body});
+  await writeSong(song);
+  const l=curList(); if(!ex&&l&&!l.ids.includes(song.id)){ l.ids.push(song.id); persist('Add '+title+' to '+l.name); }
+  show('library'); renderLibrary();
+  toast((ex?'Updated ':'Added ')+title+(token()?'':' — on this device only until you add a token in Sync'));
+}
+
 /* ---------- sync settings ---------- */
 $('#setRepo').textContent=REPO;
 $('#btnSettings').onclick=()=>{ $('#setToken').value=token(); $('#setStatus').textContent=token()?'A token is saved on this device.':'No token on this device.'; show('settings'); window.scrollTo(0,0); };
@@ -823,7 +856,8 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 window.addEventListener('pageshow',()=>{ if(!screens.stage.hidden) stopScroll(); });
 window.addEventListener('focus',()=>{ if(!screens.stage.hidden&&!playing) bar.classList.remove('hide'); });
 
-loadLocal(); renderLibrary(); connect();
+loadLocal(); renderLibrary(); connect().then(importFromHash);
+window.addEventListener('hashchange',importFromHash);
 })();
 </script>
 </body>
