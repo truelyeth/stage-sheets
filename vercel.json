@@ -1,0 +1,4 @@
+{
+  "functions": { "api/ug.js": { "maxDuration": 20 } },
+  "regions": ["fra1"]
+}

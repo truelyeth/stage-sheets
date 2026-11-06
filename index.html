@@ -752,7 +752,7 @@ const ugBlockedMsg='The site blocked the search from the server. Open the song o
 async function ugApi(params){
   const r=await fetch('/api/ug?'+new URLSearchParams(params),{cache:'no-store'});
   let j=null; try{ j=await r.json(); }catch(e){}
-  if(!r.ok){ const e=new Error(j&&j.error||('HTTP '+r.status)); e.code=j&&j.error; throw e; }
+  if(!r.ok){ const e=new Error(j&&j.error||('HTTP '+r.status)); e.code=j&&j.error; e.detail=j&&j.detail; throw e; }
   return j;
 }
 async function importFromUG(url,btn){
@@ -778,7 +778,7 @@ $('#fdForm').onsubmit=async e=>{
       li.querySelector('button').onclick=function(){ importFromUG(r.url,this); };
       fdList.appendChild(li);
     });
-  }catch(e){ $('#fdGo').disabled=false; fdStatus.textContent=e.code==='blocked'?ugBlockedMsg:'Search failed ('+e.message+').'; }
+  }catch(e){ $('#fdGo').disabled=false; fdStatus.textContent=(e.detail?e.detail+'. ':'')+(e.code==='blocked'?'Open the song on the site and tap the Send bookmark (see Sync).':'Search failed ('+e.message+').'); }
 };
 
 /* ---------- sync settings ---------- */

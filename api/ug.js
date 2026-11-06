@@ -11,8 +11,15 @@ function decodeEntities(s) {
   return s.replace(/&quot;/g, '"').replace(/&#0*39;/g, "'").replace(/&#x27;/gi, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&#x2F;/gi, '/').replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' ').replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n)).replace(/&amp;/g, '&');
 }
+function browserHeaders(url) {
+  const he = /tab4u/.test(url);
+  return { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': he ? 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7' : 'en-US,en;q=0.9', 'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'none', 'Sec-Fetch-User': '?1',
+    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"', 'sec-ch-ua-mobile': '?0', 'sec-ch-ua-platform': '"Windows"', 'Cache-Control': 'max-age=0' };
+}
 async function getHtml(url) {
-  const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'he-IL,he;q=0.9,en-US,en;q=0.8' }, redirect: 'follow' });
+  const r = await fetch(url, { headers: browserHeaders(url), redirect: 'follow' });
   const html = await r.text();
   const blocked = r.status === 403 || r.status === 429 || r.status === 503 || /cf-chl|challenge-platform|Just a moment/i.test(html);
   if (blocked) { const e = new Error('blocked'); e.status = r.status; throw e; }
@@ -52,7 +59,7 @@ const FILLER_RE = /^(\||\|\||\/|-|–|—|%|x\d+|\(x\d+\)|N\.?C\.?|\.{2,}|…|\(
 function isChordLine(line) { const t = line.trim().split(/\s+/).filter(Boolean); if (!t.length) return false; let n = 0; for (const x of t) { if (CHORD_RE.test(x)) n++; else if (!FILLER_RE.test(x)) return false; } return n > 0; }
 function tab4uNameFromUrl(href) {
   // /tabs/songs/2137_עברי_לידר_-_יותר_טוב_כלום.html  -> artist "עברי לידר", song "יותר טוב כלום"
-  const m = href.match(/\/tabs\/songs\/\d+_([^?#]*?)\.html/); if (!m) return null;
+  const m = href.match(/tabs\/songs\/(?:\d+_)?([^?#]*?)\.html/); if (!m) return null;
   let s; try { s = decodeURIComponent(m[1]); } catch (e) { s = m[1]; }
   const parts = s.split('_-_');
   const clean = x => x.replace(/_/g, ' ').trim();
@@ -61,7 +68,7 @@ function tab4uNameFromUrl(href) {
 async function tab4uSearch(q) {
   const html = await getHtml('https://www.tab4u.com/resultsSimple?tab=songs&q=' + encodeURIComponent(q));
   const seen = new Set(), out = [];
-  const re = /href="([^"]*\/tabs\/songs\/\d+_[^"]*\.html[^"]*)"/g; let m;
+  const re = /href=["']([^"']*tabs\/songs\/[^"']*?\.html[^"']*)["']/gi; let m;
   while ((m = re.exec(html))) {
     let href = decodeEntities(m[1]).replace(/[?#].*$/, '');
     if (!/^https?:/.test(href)) href = 'https://www.tab4u.com/' + href.replace(/^\/+/, '');
@@ -104,13 +111,24 @@ async function tab4uTab(url) {
   return { title, artist, key: '', capo, bpm: 0, body, source: 'tab4u', rtl: HEB.test(body) };
 }
 
+async function siteDebug(q, which) {
+  const url = which === 'ug' ? 'https://www.ultimate-guitar.com/search.php?search_type=title&value=' + encodeURIComponent(q)
+                             : 'https://www.tab4u.com/resultsSimple?tab=songs&q=' + encodeURIComponent(q);
+  const r = await fetch(url, { headers: browserHeaders(url), redirect: 'follow' });
+  const html = await r.text();
+  const links = []; const re = /href=["']([^"']*)["']/gi; let m; while ((m = re.exec(html)) && links.length < 400) links.push(m[1]);
+  return { site: which, status: r.status, finalUrl: r.url, length: html.length, hasStore: /class="js-store"/.test(html), title: (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1],
+    songLinks: links.filter(l => /tabs\/songs/i.test(l)).slice(0, 10), otherLinks: links.filter(l => /tab/i.test(l) && !/tabs\/songs/i.test(l)).slice(0, 15),
+    snippet: html.replace(/\s+/g, ' ').slice(0, 1500) };
+}
+
 /* ---------------- handler ---------------- */
 async function search(q) {
   const order = HEB.test(q) ? [tab4uSearch, ugSearch] : [ugSearch, tab4uSearch];
   let results = [], errors = [];
   for (const fn of order) {
-    try { results = results.concat(await fn(q)); } catch (e) { errors.push((fn === ugSearch ? 'UG: ' : 'tab4u: ') + e.message); }
-    if (results.length >= 5 && fn === order[0]) break;   // first choice had enough; don't bother the other site
+    if (results.length >= 5) break;
+    try { const r = await fn(q); results = results.concat(r); if (!r.length) errors.push((fn === ugSearch ? 'Ultimate Guitar' : 'tab4u') + ': no results'); } catch (e) { errors.push((fn === ugSearch ? 'Ultimate Guitar' : 'tab4u') + ': ' + (/blocked|nostore/.test(e.message) ? 'blocked the search' : e.message)); }
   }
   return { results: results.slice(0, 25), errors };
 }
@@ -124,7 +142,8 @@ module.exports = async (req, res) => {
       if (/^https:\/\/(www\.)?tab4u\.com\/tabs\/songs\//.test(url)) return res.status(200).json(await tab4uTab(url));
       return res.status(400).json({ error: 'bad_url' });
     }
-    if (q) { const out = await search(q); if (!out.results.length && out.errors.some(e => /blocked/.test(e))) return res.status(502).json({ error: 'blocked', detail: out.errors.join('; ') }); return res.status(200).json(out); }
+    if (q && req.query.debug) return res.status(200).json(await siteDebug(q, req.query.debug === 'ug' ? 'ug' : 'tab4u'));
+    if (q) { const out = await search(q); if (!out.results.length && out.errors.length) return res.status(502).json({ error: 'blocked', detail: out.errors.join('; ') }); return res.status(200).json(out); }
     return res.status(400).json({ error: 'missing q or url' });
   } catch (e) {
     const code = /blocked|nostore/.test(e.message) ? 'blocked' : 'failed';
