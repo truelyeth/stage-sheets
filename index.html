@@ -76,6 +76,18 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick .k{font-family:var(--mono);color:var(--chord);font-size:14px;margin-left:auto}
 .bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
 #btnCount.on{border-color:var(--chord);color:var(--chord)}
+/* visual metronome: a ring in the top-right that pulses on every beat, stronger on beat 1; taps pass through it */
+.metro{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:min(26vw,190px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;z-index:12;background:color-mix(in srgb,var(--chord) 55%,transparent);transform:scale(.55);opacity:.7;transition:transform .25s ease-out,background .25s,opacity .25s}
+.metro.tick{background:var(--chord);transform:scale(1);opacity:1;transition:none;box-shadow:0 0 0 14px color-mix(in srgb,var(--chord) 30%,transparent)}
+.metro.one{background:var(--accent);transform:scale(1.15);box-shadow:0 0 0 22px color-mix(in srgb,var(--accent) 35%,transparent)}
+.metro .beat{font-family:var(--mono);font-weight:700;font-size:min(13vw,84px);line-height:1;color:#111}
+.metro .bpm{font-family:var(--mono);font-size:13px;color:#111;letter-spacing:.06em;font-variant-numeric:tabular-nums;opacity:.75}
+.metro-flash{position:fixed;top:0;left:0;right:0;height:7px;background:var(--chord);opacity:0;z-index:12;pointer-events:none;transition:opacity .05s}
+
+.metro-flash.tick{opacity:1}
+.metro-flash.one{background:var(--accent);opacity:1}
+#mtToggle.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
+@media (prefers-reduced-motion:reduce){ .metro{transition:none} }
 /* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
 .zone{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
 .zone button,.zone select{border-color:color-mix(in srgb,var(--zone) 45%,var(--line))}
@@ -126,7 +138,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 /* Editor / IO */
 .ed-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
 .ed-head h2{margin:0;font-size:20px;font-weight:600;flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ed-form{display:grid;grid-template-columns:1fr 100px 90px 150px;gap:12px}
+.ed-form{display:grid;grid-template-columns:1fr 90px 80px 140px 110px;gap:12px}
 .ed-form .full{grid-column:1 / -1}
 .ed-foot{grid-column:1 / -1;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .io p{color:var(--muted);font-size:14px;max-width:65ch}
@@ -136,6 +148,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 @media (max-width:640px){
   .ed-form{grid-template-columns:1fr 1fr 1fr}
   .ed-form .wide{grid-column:1 / -1}
+  .grp.tempo{flex:1 1 100%}
   .bar{gap:6px 8px}
   .bar .lbl{display:none}
   .bar button{min-height:40px;padding:0 10px}
@@ -173,12 +186,15 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 <div id="stage" hidden>
   <div id="sheet" class="sheet"><div class="leadin"></div><pre id="sheetBody"></pre><div class="tail"></div></div>
   <div id="count" class="count" hidden>3</div>
+  <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
+  <div id="metroFlash" class="metro-flash"></div>
   <div class="bar">
     <div class="zone z-play" aria-label="Scrolling">
       <button id="btnPlay" class="primary">▶ Scroll</button>
       <div class="grp speed"><span class="lbl">Speed</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button><span id="speedVal" class="val">30</span></div>
       <button id="btnTop" class="icon" aria-label="Back to top">⤒</button>
       <button id="btnCount" aria-label="Count-in for this song">3·2·1</button>
+      <div class="grp tempo"><span class="lbl">Tempo</span><button id="mtToggle" class="icon" aria-label="Show the beat">♩</button><button id="bpmDown" class="icon" aria-label="Slower tempo">−</button><span id="bpmVal" class="val">—</span><button id="bpmUp" class="icon" aria-label="Faster tempo">+</button><button id="mtTap" aria-label="Tap the tempo">Tap</button><button id="mtBeats" class="icon" aria-label="Beats per bar">4</button></div>
     </div>
     <div class="zone z-nav" aria-label="Songs">
       <button id="btnBack">‹ Setlist</button>
@@ -219,6 +235,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <label>Key<input id="edKey" placeholder="G" autocomplete="off"></label>
     <label>Capo<input id="edCapo" type="number" min="0" max="9" placeholder="0"></label>
     <label>Scroll speed (px/s)<input id="edSpeed" type="number" min="1" max="120" value="30"></label>
+    <label>Tempo (bpm)<input id="edBpm" type="number" min="30" max="300" placeholder="—"></label>
     <div class="full ed-row">
       <button id="edPaste">Paste from clipboard</button>
       <button id="edClean">Clean up</button>
@@ -292,7 +309,7 @@ const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
 function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
-const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -482,7 +499,7 @@ const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$(
 function show(name){
   for(const k in screens) screens[k].hidden=(k!==name);
   document.body.style.overflow=(name==='stage')?'hidden':'';
-  if(name!=='stage'){ stopScroll(); releaseWake(); }
+  if(name!=='stage'){ stopScroll(); if(typeof mtStop==='function') mtStop(); releaseWake(); }
 }
 let toastT=0;
 function toast(msg){ let t=$('.toast'); if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);} t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{t.hidden=true;},2000); }
@@ -569,7 +586,7 @@ function openEditor(id){
   if(!s) return;
   editingId=id||null;
   $('#edHeading').textContent=id?'Edit song':'New song';
-  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
+  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
   $('#edDup').hidden=!id;
   $('#edDelete').hidden=!id||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
   show('editor'); window.scrollTo(0,0);
@@ -580,7 +597,7 @@ $('#edSave').onclick=async function(){
   const prev=editingId?state.songs.find(x=>x.id===editingId):null;
   const s=Object.assign({},prev||{id:uid(),tr:0},{
     title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
-    speed:Math.min(120,Math.max(1,+$('#edSpeed').value||30)), body:$('#edBody').value });
+    speed:Math.min(120,Math.max(1,+$('#edSpeed').value||30)), bpm:Math.max(0,Math.min(300,Math.round(+$('#edBpm').value)||0)), body:$('#edBody').value });
   const isNew=!prev;
   await writeSong(s);
   const l=curList(); if(isNew&&l&&!l.ids.includes(s.id)){ l.ids.push(s.id); persist('Add '+s.title+' to '+l.name); }
@@ -659,7 +676,7 @@ $('#ioLoad').onclick=async function(){
 /* ---------- import from Ultimate Guitar via bookmarklet ---------- */
 // The bookmarklet runs on the UG page in the user's browser: reads the song out of the page's embedded JSON
 // (falling back to the visible text), and opens this site with the song in the URL hash. Nothing hits a server.
-const BOOKMARKLET=`javascript:(function(){try{var g=function(o,p){for(var i=0;i<p.length;i++){if(!o)return null;o=o[p[i]]}return o};var st=document.querySelector('.js-store');var j=null;try{j=st&&JSON.parse(st.getAttribute('data-content'))}catch(e){}var d=g(j,['store','page','data'])||{};var tab=d.tab||{},tv=d.tab_view||{};var body=g(tv,['wiki_tab','content']);if(!body){var pre=document.querySelector('pre');body=pre&&pre.innerText}if(!body){alert('No chord sheet found on this page');return}var o={title:tab.song_name||document.title.split(' CHORDS')[0].split(' Chords')[0],artist:tab.artist_name||'',key:tab.tonality_name||'',capo:g(tv,['meta','capo'])||0,body:body};location.href=${JSON.stringify(location.origin+location.pathname)}+'#import='+encodeURIComponent(JSON.stringify(o))}catch(e){alert('Could not read this page: '+e.message)}})();`;
+const BOOKMARKLET=`javascript:(function(){try{var g=function(o,p){for(var i=0;i<p.length;i++){if(!o)return null;o=o[p[i]]}return o};var st=document.querySelector('.js-store');var j=null;try{j=st&&JSON.parse(st.getAttribute('data-content'))}catch(e){}var d=g(j,['store','page','data'])||{};var tab=d.tab||{},tv=d.tab_view||{};var body=g(tv,['wiki_tab','content']);if(!body){var pre=document.querySelector('pre');body=pre&&pre.innerText}if(!body){alert('No chord sheet found on this page');return}var o={title:tab.song_name||document.title.split(' CHORDS')[0].split(' Chords')[0],artist:tab.artist_name||'',key:tab.tonality_name||'',capo:g(tv,['meta','capo'])||0,bpm:g(tv,['strumming',0,'bpm'])||g(tv,['meta','bpm'])||0,body:body};location.href=${JSON.stringify(location.origin+location.pathname)}+'#import='+encodeURIComponent(JSON.stringify(o))}catch(e){alert('Could not read this page: '+e.message)}})();`;
 $('#bmLink').href=BOOKMARKLET;
 $('#bmLink').onclick=e=>{ e.preventDefault(); toast('Drag this to your bookmarks bar, or use Copy below'); };
 $('#bmCopy').onclick=()=>{
@@ -676,7 +693,8 @@ async function importFromHash(){
   const key=String(o.key||meta.key||'').trim(), capo=Math.max(0,Math.min(9,+o.capo||meta.capo||0));
   const same=(a,b)=>(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
   const ex=state.songs.find(s=>same(s.title,title)&&same(s.artist,artist));
-  const song=Object.assign({},ex||{id:uid(),tr:0,speed:30},{title,artist,key,capo,body});
+  const bpm=Math.max(0,Math.min(300,Math.round(+o.bpm)||0));
+  const song=Object.assign({},ex||{id:uid(),tr:0,speed:30},{title,artist,key,capo,body}); if(bpm) song.bpm=bpm;
   await writeSong(song);
   const l=curList(); if(!ex&&l&&!l.ids.includes(song.id)){ l.ids.push(song.id); persist('Add '+title+' to '+l.name); }
   show('library'); renderLibrary();
@@ -711,7 +729,7 @@ function openStage(i){
   state.curId=vs[i].id;
   renderSingers();
   const s=cur();
-  stopScroll();
+  stopScroll(); mtStop(); renderTempo();
   renderSheet(false);
   speedIn.value=s.speed; speedVal.textContent=s.speed;
   applyFont();
@@ -806,6 +824,35 @@ function startScroll(){
 }
 function stopScroll(){ playing=false; cancelAnimationFrame(raf); clearInterval(countT); counting=false; countEl.hidden=true; clearTimeout(hideT); bar.classList.remove('hide'); btnPlay.textContent='▶ Scroll'; btnPlay.classList.remove('on'); }
 function toggleScroll(){ if(counting){ startScroll(); return; } if(playing){ if(performance.now()-startedAt<500) return; stopScroll(); } else if(bar.classList.contains('hide')){ stopScroll(); } else startScroll(); }
+/* visual metronome */
+const metro=$('#metro'), metroFlash=$('#metroFlash'), mtToggle=$('#mtToggle');
+let mtOn=false, mtRaf=0, mtNext=0, mtBeat=0, mtOff=0, taps=[], tempoT=0;
+const beatsOf=s=>(s&&s.beats)||4;
+function renderTempo(){ const s=cur(); $('#bpmVal').textContent=s&&s.bpm?s.bpm:'—'; $('#mtBeats').textContent=beatsOf(s); metro.querySelector('.bpm').textContent=s&&s.bpm?s.bpm+' bpm':''; }
+function commitTempo(){ clearTimeout(tempoT); tempoT=setTimeout(()=>{ const s=cur(); if(s) writeSong(s); },800); }
+function mtFlash(one){
+  metro.querySelector('.beat').textContent=mtBeat;
+  metro.classList.add('tick'); metroFlash.classList.add('tick'); if(one){ metro.classList.add('one'); metroFlash.classList.add('one'); }
+  clearTimeout(mtOff); mtOff=setTimeout(()=>{ metro.classList.remove('tick','one'); metroFlash.classList.remove('tick','one'); },90);
+}
+function mtTick(t){
+  if(!mtOn) return;
+  const s=cur(); const per=60000/((s&&s.bpm)||90);
+  if(t>=mtNext){ mtBeat=mtBeat%beatsOf(s)+1; mtFlash(mtBeat===1); mtNext+=per; if(t-mtNext>per) mtNext=t+per; }
+  mtRaf=requestAnimationFrame(mtTick);
+}
+function mtStart(){ const s=cur(); if(!s) return; if(!s.bpm){ s.bpm=90; renderTempo(); commitTempo(); } mtOn=true; mtBeat=0; mtNext=performance.now(); metro.hidden=false; mtToggle.classList.add('on'); cancelAnimationFrame(mtRaf); mtRaf=requestAnimationFrame(mtTick); }
+function mtStop(){ mtOn=false; cancelAnimationFrame(mtRaf); metro.hidden=true; metro.classList.remove('tick','one'); metroFlash.classList.remove('tick','one'); mtToggle.classList.remove('on'); }
+mtToggle.onclick=()=>mtOn?mtStop():mtStart();
+function setBpm(v){ const s=cur(); if(!s) return; s.bpm=Math.max(30,Math.min(300,Math.round(v))); renderTempo(); commitTempo(); if(mtOn){ mtNext=performance.now(); mtBeat=0; } }
+$('#bpmUp').onclick=()=>setBpm((cur().bpm||90)+1);
+$('#bpmDown').onclick=()=>setBpm((cur().bpm||90)-1);
+$('#mtTap').onclick=()=>{
+  const now=performance.now(); if(taps.length&&now-taps[taps.length-1]>2000) taps=[]; taps.push(now); if(taps.length>8) taps.shift();
+  if(taps.length>=2){ const iv=(taps[taps.length-1]-taps[0])/(taps.length-1); setBpm(60000/iv); if(!mtOn) mtStart(); mtNext=now; mtBeat=0; toast('Tempo '+cur().bpm+' bpm'); }
+  else toast('Keep tapping…');
+};
+$('#mtBeats').onclick=()=>{ const s=cur(); if(!s) return; const order=[4,3,6,2]; s.beats=order[(order.indexOf(beatsOf(s))+1)%order.length]; renderTempo(); commitTempo(); if(mtOn){ mtBeat=0; mtNext=performance.now(); } };
 function applyMode(){ document.documentElement.dataset.mode=pref('outdoor',false)?'outdoor':''; if(!pref('outdoor',false)) delete document.documentElement.dataset.mode; }
 $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyMode(); toast(pref('outdoor',false)?'Outdoor mode on':'Outdoor mode off'); };
 applyMode();
