@@ -28,3 +28,9 @@ Open Sync in the app: there is a "Send to Stage Sheets" bookmark. Drag it to the
 (laptop) or save its address as a bookmark named `send` (Chrome on the tablet). On any UG chord
 page, click the bookmark: the song lands in the app with title, artist, key and capo filled in.
 It runs in your own browser, so it uses your UG login and never touches a server.
+
+## Find on UG (search by name)
+
+The "Find on UG" button searches Ultimate Guitar by name and imports the version you pick. It uses
+the serverless function in `api/ug.js` (deployed by Vercel automatically). Ultimate Guitar may block
+server-side fetches; when it does the app says so and the Send bookmark still works.

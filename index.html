@@ -74,6 +74,10 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick label{flex-direction:row;align-items:center;gap:12px;font-size:17px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
 .pick input{width:22px;height:22px;accent-color:var(--accent)}
 .pick .k{font-family:var(--mono);color:var(--chord);font-size:14px;margin-left:auto}
+.pick .res{flex-direction:row;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.pick .res .meta{color:var(--muted);font-size:13px;white-space:nowrap}
+.pick .res .t{flex:1;min-width:0}
+.pick .res .t small{display:block;color:var(--muted);font-weight:400}
 .bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
 #btnCount.on{border-color:var(--chord);color:var(--chord)}
 /* visual metronome: a ring in the top-right that pulses on every beat, stronger on beat 1; taps pass through it */
@@ -172,6 +176,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
       <span id="syncChip" class="chip">Loading…</span>
     </div>
     <div class="lib-actions">
+      <button id="btnFind">Find on UG</button>
       <button id="btnIO">Backup</button>
       <button id="btnSettings">Sync</button>
       <button id="btnAdd" class="primary">+ Add song</button>
@@ -212,6 +217,21 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
   </div>
+</div>
+
+<div id="finder" class="wrap" hidden>
+  <header class="ed-head">
+    <button id="fdBack">‹ Setlist</button>
+    <h2>Find a song</h2>
+    <span style="width:90px"></span>
+  </header>
+  <form id="fdForm" class="ed-row" style="margin-bottom:14px">
+    <input id="fdQ" placeholder="Song name, or artist and song, or a UG link" autocomplete="off" style="flex:1 1 240px">
+    <button id="fdGo" class="primary" type="submit">Search</button>
+  </form>
+  <p id="fdStatus" class="hint" style="margin:0 0 12px"></p>
+  <ul id="fdList" class="pick"></ul>
+  <p class="hint">Searches Ultimate Guitar and imports the version you pick. If UG blocks the search, open the song on their site and use the Send bookmark (see Sync).</p>
 </div>
 
 <div id="picker" class="wrap" hidden>
@@ -498,7 +518,7 @@ function renderBody(body,n){
 }
 
 /* ---------- screens ---------- */
-const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$('#io'),settings:$('#settings'),picker:$('#picker')};
+const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$('#io'),settings:$('#settings'),picker:$('#picker'),finder:$('#finder')};
 function show(name){
   for(const k in screens) screens[k].hidden=(k!==name);
   document.body.style.overflow=(name==='stage')?'hidden':'';
@@ -690,6 +710,9 @@ async function importFromHash(){
   const m=location.hash.match(/^#import=(.+)$/); if(!m) return;
   history.replaceState(null,'',location.pathname+location.search);
   let o; try{ o=JSON.parse(decodeURIComponent(m[1])); }catch(e){ toast('Import failed: could not read the song'); return; }
+  await importSong(o);
+}
+async function importSong(o){
   const {body,meta}=cleanSheet(String(o.body||''));
   if(!body.trim()){ toast('Import failed: empty sheet'); return; }
   const title=String(o.title||meta.title||'Untitled').trim(), artist=String(o.artist||meta.artist||'').trim();
@@ -703,6 +726,43 @@ async function importFromHash(){
   show('library'); renderLibrary();
   toast((ex?'Updated ':'Added ')+title+(token()?'':' — on this device only until you add a token in Sync'));
 }
+
+/* ---------- find on Ultimate Guitar (server-side search, falls back to the bookmark) ---------- */
+const fdList=$('#fdList'), fdStatus=$('#fdStatus');
+$('#btnFind').onclick=()=>{ show('finder'); window.scrollTo(0,0); setTimeout(()=>$('#fdQ').focus(),50); };
+$('#fdBack').onclick=()=>{ show('library'); renderLibrary(); };
+const ugBlockedMsg='Ultimate Guitar blocked the search from the server. Open the song on their site and tap the Send bookmark (see Sync).';
+async function ugApi(params){
+  const r=await fetch('/api/ug?'+new URLSearchParams(params),{cache:'no-store'});
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok){ const e=new Error(j&&j.error||('HTTP '+r.status)); e.code=j&&j.error; throw e; }
+  return j;
+}
+async function importFromUG(url,btn){
+  if(btn){ btn.disabled=true; btn.textContent='Fetching…'; }
+  fdStatus.textContent='Fetching the sheet…';
+  try{ const o=await ugApi({url}); await importSong(o); }
+  catch(e){ fdStatus.textContent=e.code==='blocked'?ugBlockedMsg:'Could not fetch that page ('+e.message+').'; if(btn){ btn.disabled=false; btn.textContent='Import'; } }
+}
+$('#fdForm').onsubmit=async e=>{
+  e.preventDefault();
+  const q=$('#fdQ').value.trim(); if(!q) return;
+  fdList.innerHTML='';
+  if(/^https?:\/\//.test(q)){ importFromUG(q); return; }
+  fdStatus.textContent='Searching…'; $('#fdGo').disabled=true;
+  try{
+    const {results}=await ugApi({q});
+    $('#fdGo').disabled=false;
+    if(!results.length){ fdStatus.textContent='Nothing found for "'+q+'". Try artist and song name.'; return; }
+    fdStatus.textContent=results.length+' chord versions. Highest rated first.';
+    results.forEach(r=>{
+      const li=document.createElement('li');
+      li.innerHTML=`<div class="res"><span class="t">${esc(r.title)}<small>${esc(r.artist)}${r.version>1?' · ver '+r.version:''}</small></span><span class="meta">★ ${r.rating.toFixed(1)} (${r.votes.toLocaleString()})</span><button class="primary">Import</button></div>`;
+      li.querySelector('button').onclick=function(){ importFromUG(r.url,this); };
+      fdList.appendChild(li);
+    });
+  }catch(e){ $('#fdGo').disabled=false; fdStatus.textContent=e.code==='blocked'?ugBlockedMsg:'Search failed ('+e.message+').'; }
+};
 
 /* ---------- sync settings ---------- */
 $('#setRepo').textContent=REPO;
