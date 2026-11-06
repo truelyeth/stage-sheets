@@ -262,6 +262,8 @@ Paste your chord sheet here"></textarea></label>
   <label>GitHub token<input id="setToken" type="password" autocomplete="off" placeholder="github_pat_…"></label>
   <div class="row">
     <button id="setSave" class="primary">Save token</button>
+    <button id="setShow">Show</button>
+    <button id="setCopy">Copy token</button>
     <button id="setClear">Remove token</button>
   </div>
   <p id="setStatus" class="hint"></p>
@@ -717,6 +719,12 @@ $('#setSave').onclick=async function(){
   try{ ghEtag=null; await ghGet(); $('#setStatus').textContent='Token works. Setlist loaded from GitHub.'; await connect(); toast('Connected to GitHub'); }
   catch(e){ $('#setStatus').textContent='GitHub rejected that token ('+e.message+'). Check it has Contents read and write on '+REPO+'.'; }
   this.disabled=false;
+};
+$('#setShow').onclick=function(){ const i=$('#setToken'); const show=i.type==='password'; i.type=show?'text':'password'; this.textContent=show?'Hide':'Show'; };
+$('#setCopy').onclick=()=>{
+  const t=token(); if(!t){ toast('No token saved on this device'); return; }
+  const fallback=()=>{ const i=$('#setToken'); i.type='text'; i.focus(); i.select(); toast('Select all and copy'); };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(()=>toast('Token copied'),fallback); else fallback();
 };
 $('#setClear').onclick=()=>{ try{ localStorage.removeItem(TOKEN_KEY); }catch(e){} $('#setToken').value=''; $('#setStatus').textContent='Token removed. This device is read-only again.'; online=false; };
 
