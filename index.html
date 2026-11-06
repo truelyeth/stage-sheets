@@ -355,7 +355,7 @@ async function ghPut(doc,msg){
   const j=await r.json(); fileSha=(j.content&&j.content.sha)||fileSha; ghEtag=null;
 }
 // one commit at a time; a burst of changes (slider, several reorders) folds into the next commit
-let pushing=false, pushPending=null, pushT=0;
+let pushing=false, pushPending=null, pushT=0, localDirty=0;
 function persist(msg){
   saveLocal();
   if(!token()) return;
@@ -372,7 +372,8 @@ let siteEtag=null, ghEtag=null;
 function applyRemote(remote,fromGit){
   const file=remote.songs;
   const byId=new Map(state.songs.map(s=>[s.id,s]));
-  const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(!fromGit&&l){ if(l.speed) s.speed=l.speed; s.tr=l.tr||0; if(l.keys) s.keys=Object.assign({},s.keys||{},l.keys); } return s; });
+  const LOCAL_FIELDS=['speed','tr','bpm','beats','metro','countin'];
+  const merged=file.map((f,i)=>{ const s=Object.assign({},f,{id:f.id||('file'+i),fromFile:true}); const l=byId.get(s.id); if(!fromGit&&l){ for(const k of LOCAL_FIELDS) if(l[k]!==undefined) s[k]=l[k]; if(l.keys) s.keys=Object.assign({},s.keys||{},l.keys); } return s; });
   // songs added on this device before it was connected: keep them, and if we can write, commit them now
   const ids=new Set(merged.map(s=>s.id)); const localOnly=state.songs.filter(l=>!ids.has(l.id)&&!l.fromFile);
   for(const l of localOnly) merged.push(l);
@@ -411,7 +412,7 @@ async function connect(){
 // live updates: ask GitHub every 15 s (cheap: unchanged answers are 304s), the site file every 60 s, and right away when the tab comes back
 let polling=false;
 async function poll(){
-  if(polling||pushing||pushPending||document.visibilityState!=='visible'||!screens.editor.hidden) return;
+  if(polling||pushing||pushPending||localDirty||document.visibilityState!=='visible'||!screens.editor.hidden) return;
   polling=true;
   try{ const arr=await fetchRemote(); if(arr&&applyRemote(arr,!!token())) toast('Setlist updated'); }catch(e){}
   polling=false;
@@ -866,7 +867,7 @@ function countInFor(s){ return (s&&(s.countin===true||s.countin===false))?s.coun
 $('#btnCount').onclick=async()=>{ const s=cur(); s.countin=!countInFor(s); renderSheet(true); toast(s.countin?'Count-in on for this song':'Count-in off for this song'); await writeSong(s); };
 speedIn.addEventListener('input',()=>{ const v=+speedIn.value; speedVal.textContent=v; const s=cur(); if(s) s.speed=v; });
 let speedT=0;
-function commitSpeed(){ clearTimeout(speedT); speedT=setTimeout(()=>{ const s=cur(); if(s) writeSong(s); },600); }
+function commitSpeed(){ clearTimeout(speedT); localDirty++; speedT=setTimeout(()=>{ localDirty=Math.max(0,localDirty-1); const s=cur(); if(s) writeSong(s); },600); }
 speedIn.addEventListener('change',commitSpeed);
 // hold a −/+ button: first step on press, then repeats that get faster the longer you hold
 function holdable(btn,fn){
@@ -911,7 +912,7 @@ const metro=$('#metro'), metroFlash=$('#metroFlash'), mtToggle=$('#mtToggle');
 let mtOn=false, mtRaf=0, mtNext=0, mtBeat=0, mtOff=0, taps=[], tempoT=0;
 const beatsOf=s=>(s&&s.beats)||4;
 function renderTempo(){ const s=cur(); $('#bpmVal').textContent=s&&s.bpm?s.bpm:'—'; $('#mtBeats').textContent=beatsOf(s); metro.querySelector('.bpm').textContent=s&&s.bpm?s.bpm+' bpm':''; }
-function commitTempo(){ clearTimeout(tempoT); tempoT=setTimeout(()=>{ const s=cur(); if(s) writeSong(s); },800); }
+function commitTempo(){ clearTimeout(tempoT); localDirty++; tempoT=setTimeout(()=>{ localDirty=Math.max(0,localDirty-1); const s=cur(); if(s) writeSong(s); },800); }
 function mtFlash(one){
   metro.querySelector('.beat').textContent=mtBeat;
   metro.classList.add('tick'); metroFlash.classList.add('tick'); if(one){ metro.classList.add('one'); metroFlash.classList.add('one'); }
@@ -926,7 +927,7 @@ function mtTick(t){
 function mtStart(){ const s=cur(); if(!s) return; if(!s.bpm){ s.bpm=90; renderTempo(); commitTempo(); } if(s.metro===false){ s.metro=true; commitTempo(); } mtOn=true; mtBeat=0; mtNext=performance.now(); metro.hidden=false; mtToggle.classList.add('on'); cancelAnimationFrame(mtRaf); mtRaf=requestAnimationFrame(mtTick); }
 function mtStop(){ mtOn=false; cancelAnimationFrame(mtRaf); metro.hidden=true; metro.classList.remove('tick','one'); metroFlash.classList.remove('tick','one'); mtToggle.classList.remove('on'); }
 mtToggle.onclick=()=>{ if(mtOn){ mtStop(); const s=cur(); if(s){ s.metro=false; commitTempo(); } toast('Beat off for this song'); } else mtStart(); };
-function setBpm(v){ const s=cur(); if(!s) return; s.bpm=Math.max(30,Math.min(300,Math.round(v))); renderTempo(); commitTempo(); if(mtOn){ mtNext=performance.now(); mtBeat=0; } }
+function setBpm(v){ const s=cur(); if(!s) return; s.bpm=Math.max(30,Math.min(300,Math.round(v))); renderTempo(); commitTempo(); if(!token()) setChip('Saved on this device only — add a token in Sync to save online'); if(mtOn){ mtNext=performance.now(); mtBeat=0; } }
 holdable($('#bpmUp'),()=>setBpm((cur().bpm||90)+1));
 holdable($('#bpmDown'),()=>setBpm((cur().bpm||90)-1));
 $('#mtTap').onclick=()=>{
