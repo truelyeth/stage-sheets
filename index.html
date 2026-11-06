@@ -39,7 +39,7 @@ button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(
 button.danger{color:var(--danger);border-color:var(--danger)}
 button.icon{min-width:46px;padding:0}
 input,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
-textarea{font-family:var(--mono);font-size:16px;line-height:1.45;min-height:52vh;resize:vertical;white-space:pre;overflow-wrap:normal;overflow-x:auto}
+textarea{font-family:var(--mono);font-size:16px;line-height:1.45;min-height:52vh;resize:vertical;white-space:pre;overflow-wrap:normal;overflow-x:auto;unicode-bidi:plaintext}
 label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);font-weight:500;min-width:0}
 .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 code{font-family:var(--mono);color:var(--chord);font-size:.95em}
@@ -63,6 +63,9 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .song .key{color:var(--chord);font-family:var(--mono);font-weight:600}
 .song .tools{display:flex;flex-direction:column;gap:4px}
 .song .tools button{min-height:0;height:30px;min-width:40px;padding:0;font-size:13px;color:var(--muted)}
+.song .tools a{display:flex;align-items:center;justify-content:center;height:30px;min-width:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;font-weight:600;text-decoration:none;color:var(--muted)}
+.song .tools a.yt{color:#ff5a5a}
+.song .tools a.sp{color:#4fd178}
 .empty{color:var(--muted);padding:40px 0;text-align:center}
 .lists{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
 .lists button{min-height:38px;padding:0 14px;border-radius:999px;font-size:15px}
@@ -111,6 +114,9 @@ html[data-mode="outdoor"] .z-nav{--zone:#1f5fbf}
 .sheet{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:calc(10px + env(safe-area-inset-top,0px)) var(--gutter-r) 0 var(--gutter-l);cursor:pointer;scrollbar-width:thin}
 .sheet{touch-action:pan-y;position:relative}
 .sheet pre{margin:0;font-family:var(--mono);font-size:26px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
+.sheet pre[dir=rtl]{text-align:right}
+.sheet .c{unicode-bidi:isolate;direction:ltr}
+.sheet .s{unicode-bidi:plaintext}
 html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .bar.hide{display:none}
 .count{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 70%,transparent);font-family:var(--mono);font-size:min(40vw,320px);font-weight:600;color:var(--chord);z-index:15;pointer-events:none}
@@ -226,12 +232,12 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <span style="width:90px"></span>
   </header>
   <form id="fdForm" class="ed-row" style="margin-bottom:14px">
-    <input id="fdQ" placeholder="Song name, or artist and song, or a UG link" autocomplete="off" style="flex:1 1 240px">
+    <input id="fdQ" placeholder="Song name (Hebrew or English), artist and song, or a link" autocomplete="off" style="flex:1 1 240px">
     <button id="fdGo" class="primary" type="submit">Search</button>
   </form>
   <p id="fdStatus" class="hint" style="margin:0 0 12px"></p>
   <ul id="fdList" class="pick"></ul>
-  <p class="hint">Searches Ultimate Guitar and imports the version you pick. If UG blocks the search, open the song on their site and use the Send bookmark (see Sync).</p>
+  <p class="hint">Hebrew names search tab4u first, then Ultimate Guitar; English the other way round. Pick a result and it's imported in the app's format. If a site blocks the search, open the song there and use the Send bookmark (see Sync).</p>
 </div>
 
 <div id="picker" class="wrap" hidden>
@@ -252,6 +258,8 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div class="ed-form">
     <label class="wide">Title<input id="edTitle" placeholder="Song title" autocomplete="off"></label>
     <label class="wide">Artist<input id="edArtist" placeholder="Who sings the original (optional)" autocomplete="off"></label>
+    <label class="wide">YouTube link<input id="edYt" placeholder="Optional — otherwise the ▶ YT button searches for it" autocomplete="off" inputmode="url"></label>
+    <label class="wide">Spotify link<input id="edSp" placeholder="Optional — otherwise the ♫ Sp button searches for it" autocomplete="off" inputmode="url"></label>
     <label>Key<input id="edKey" placeholder="G" autocomplete="off"></label>
     <label>Capo<input id="edCapo" type="number" min="0" max="9" placeholder="0"></label>
     <label>Scroll speed (px/s)<input id="edSpeed" type="number" min="1" max="120" value="30"></label>
@@ -288,7 +296,7 @@ Paste your chord sheet here"></textarea></label>
   </div>
   <p id="setStatus" class="hint"></p>
   <h2 style="font-size:18px;margin:28px 0 10px">Import from Ultimate Guitar</h2>
-  <p>One tap on any Ultimate Guitar chord page sends the song here, in the right format, with title, artist, key and capo filled in. It runs in your own browser, so it works with your subscription and Pro tabs. Set it up once per device:</p>
+  <p>One tap on any Ultimate Guitar or tab4u chord page sends the song here, in the right format, with title, artist, key and capo filled in. It runs in your own browser, so it works with your subscription and Pro tabs. Set it up once per device:</p>
   <p><a id="bmLink" href="#" draggable="true" style="display:inline-block;padding:10px 16px;border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:600;text-decoration:none">★ Send to Stage Sheets</a></p>
   <p><strong>Laptop:</strong> drag that button onto your bookmarks bar. On a UG song page, click it.<br>
   <strong>Tablet (Chrome):</strong> tap Copy below, bookmark any page (★ in the menu), then edit that bookmark: name it <code>send</code> and replace its address with what you copied. On a UG song page in Chrome (the website, not the UG app), tap the address bar, type <code>send</code>, tap the bookmark.</p>
@@ -332,7 +340,7 @@ const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
 function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
-const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.yt) d.yt=s.yt; if(s.sp) d.sp=s.sp; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -434,7 +442,8 @@ async function deleteSong(id){
 const ROOT='[A-G](?:#|b)?';
 const CHORD=new RegExp('^\\(?'+ROOT+'(?:m|M|maj|min|dim|aug|sus|add|°|ø|\\+|-)?\\d{0,2}(?:(?:sus|add|maj|M|b|#|\\+|-)\\d{1,2})*(?:\\/'+ROOT+')?\\)?[*]?$');
 const FILLER=/^(\||\|\||\/|-|–|—|%|x\d+|\(x\d+\)|N\.?C\.?|\.{2,}|…|\(|\)|,)$/i;
-const SECTION=/^\s*\[[^\]]+\]\s*$|^\s*(intro|verse|chorus|pre-?chorus|bridge|outro|solo|interlude|tag|hook|refrain|coda|ending|instrumental|break)\b[\w\s\d]*:?\s*$/i;
+const SECTION=/^\s*\[[^\]]+\]\s*$|^\s*(intro|verse|chorus|pre-?chorus|bridge|outro|solo|interlude|tag|hook|refrain|coda|ending|instrumental|break)\b[\w\s\d]*:?\s*$|^\s*(פתיחה|בית|פזמון|מעבר|גשר|סיום|סולו|אינסטרומנטלי|מקדים|קודה)[\s\dא-ת']*:?\s*$/i;
+const HEBREW=/[\u0590-\u05FF]/;
 function isChordLine(line){
   const toks=line.trim().split(/\s+/).filter(Boolean);
   if(!toks.length) return false;
@@ -533,6 +542,12 @@ const list=$('#songList'), listBar=$('#listBar'), listTools=$('#listTools');
 const curList=()=>state.setlists.find(l=>l.id===state.listId)||null;
 function visibleSongs(){ const l=curList(); if(!l) return state.songs; const by=new Map(state.songs.map(s=>[s.id,s])); return l.ids.map(id=>by.get(id)).filter(Boolean); }
 function effTr(s){ return (state.singer&&s.keys&&s.keys[state.singer]!=null)?s.keys[state.singer]:(s.tr||0); }
+// listen links: a saved link if there is one, otherwise a search for "artist title" that opens in the app on phones
+function listenUrl(s,kind){
+  if(kind==='yt'&&s.yt) return s.yt; if(kind==='sp'&&s.sp) return s.sp;
+  const q=encodeURIComponent(((s.artist||'')+' '+(s.title||'')).trim());
+  return kind==='yt'?'https://www.youtube.com/results?search_query='+q:'https://open.spotify.com/search/'+q;
+}
 function renderLibrary(){
   // list chips
   listBar.innerHTML='';
@@ -552,7 +567,8 @@ function renderLibrary(){
     const li=document.createElement('li'); li.className='song';
     li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(s.key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
       <div class="tools"><button data-up="${i}" aria-label="Move up">▲</button><button data-down="${i}" aria-label="Move down">▼</button></div>
-      <div class="tools"><button data-edit="${s.id}" aria-label="Edit">Edit</button></div>`;
+      <div class="tools"><button data-edit="${s.id}" aria-label="Edit">Edit</button></div>
+      <div class="tools"><a class="yt" target="_blank" rel="noopener" href="${esc(listenUrl(s,'yt'))}" aria-label="Hear it on YouTube">▶ YT</a><a class="sp" target="_blank" rel="noopener" href="${esc(listenUrl(s,'sp'))}" aria-label="Hear it on Spotify">♫ Sp</a></div>`;
     list.appendChild(li);
   });
 }
@@ -610,7 +626,7 @@ function openEditor(id){
   if(!s) return;
   editingId=id||null;
   $('#edHeading').textContent=id?'Edit song':'New song';
-  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
+  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edYt').value=s.yt||''; $('#edSp').value=s.sp||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
   $('#edDup').hidden=!id;
   $('#edDelete').hidden=!id||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
   show('editor'); window.scrollTo(0,0);
@@ -620,7 +636,7 @@ $('#edSave').onclick=async function(){
   this.disabled=true;
   const prev=editingId?state.songs.find(x=>x.id===editingId):null;
   const s=Object.assign({},prev||{id:uid(),tr:0},{
-    title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
+    title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), yt:$('#edYt').value.trim(), sp:$('#edSp').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
     speed:Math.min(120,Math.max(1,+$('#edSpeed').value||30)), bpm:Math.max(0,Math.min(300,Math.round(+$('#edBpm').value)||0)), body:$('#edBody').value });
   const isNew=!prev;
   await writeSong(s);
@@ -700,7 +716,7 @@ $('#ioLoad').onclick=async function(){
 /* ---------- import from Ultimate Guitar via bookmarklet ---------- */
 // The bookmarklet runs on the UG page in the user's browser: reads the song out of the page's embedded JSON
 // (falling back to the visible text), and opens this site with the song in the URL hash. Nothing hits a server.
-const BOOKMARKLET=`javascript:(function(){try{var g=function(o,p){for(var i=0;i<p.length;i++){if(!o)return null;o=o[p[i]]}return o};var st=document.querySelector('.js-store');var j=null;try{j=st&&JSON.parse(st.getAttribute('data-content'))}catch(e){}var d=g(j,['store','page','data'])||{};var tab=d.tab||{},tv=d.tab_view||{};var body=g(tv,['wiki_tab','content']);if(!body){var pre=document.querySelector('pre');body=pre&&pre.innerText}if(!body){alert('No chord sheet found on this page');return}var o={title:tab.song_name||document.title.split(' CHORDS')[0].split(' Chords')[0],artist:tab.artist_name||'',key:tab.tonality_name||'',capo:g(tv,['meta','capo'])||0,bpm:g(tv,['strumming',0,'bpm'])||g(tv,['meta','bpm'])||0,body:body};location.href=${JSON.stringify(location.origin+location.pathname)}+'#import='+encodeURIComponent(JSON.stringify(o))}catch(e){alert('Could not read this page: '+e.message)}})();`;
+const BOOKMARKLET=`javascript:(function(){try{var g=function(o,p){for(var i=0;i<p.length;i++){if(!o)return null;o=o[p[i]]}return o};var o=null;if(/tab4u\\.com/.test(location.host)){var el=document.getElementById('songContentTPL');if(!el){alert('No chord sheet found on this page');return}var h=(document.querySelector('h1')||{}).innerText||'';var i=h.indexOf(' - ');var body=el.innerText.replace(/לחץ לתצוגה נוספת/g,'').replace(/\\u00a0/g,' ');var cm=document.body.innerText.match(/קאפו[^0-9]{0,12}(\\d+)/);o={title:i>0?h.slice(i+3).replace(/\\(.*$/,'').trim():h.trim(),artist:i>0?h.slice(0,i).trim():'',key:'',capo:cm?+cm[1]:0,body:body}}else{var st=document.querySelector('.js-store');var j=null;try{j=st&&JSON.parse(st.getAttribute('data-content'))}catch(e){}var d=g(j,['store','page','data'])||{};var tab=d.tab||{},tv=d.tab_view||{};var b=g(tv,['wiki_tab','content']);if(!b){var pre=document.querySelector('pre');b=pre&&pre.innerText}if(!b){alert('No chord sheet found on this page');return}o={title:tab.song_name||document.title.split(' CHORDS')[0].split(' Chords')[0],artist:tab.artist_name||'',key:tab.tonality_name||'',capo:g(tv,['meta','capo'])||0,bpm:g(tv,['strumming',0,'bpm'])||g(tv,['meta','bpm'])||0,body:b}}location.href=${JSON.stringify(location.origin+location.pathname)}+'#import='+encodeURIComponent(JSON.stringify(o))}catch(e){alert('Could not read this page: '+e.message)}})();`;
 $('#bmLink').href=BOOKMARKLET;
 $('#bmLink').onclick=e=>{ e.preventDefault(); toast('Drag this to your bookmarks bar, or use Copy below'); };
 $('#bmCopy').onclick=()=>{
@@ -732,7 +748,7 @@ async function importSong(o){
 const fdList=$('#fdList'), fdStatus=$('#fdStatus');
 $('#btnFind').onclick=()=>{ show('finder'); window.scrollTo(0,0); setTimeout(()=>$('#fdQ').focus(),50); };
 $('#fdBack').onclick=()=>{ show('library'); renderLibrary(); };
-const ugBlockedMsg='Ultimate Guitar blocked the search from the server. Open the song on their site and tap the Send bookmark (see Sync).';
+const ugBlockedMsg='The site blocked the search from the server. Open the song on the site and tap the Send bookmark (see Sync).';
 async function ugApi(params){
   const r=await fetch('/api/ug?'+new URLSearchParams(params),{cache:'no-store'});
   let j=null; try{ j=await r.json(); }catch(e){}
@@ -749,16 +765,16 @@ $('#fdForm').onsubmit=async e=>{
   e.preventDefault();
   const q=$('#fdQ').value.trim(); if(!q) return;
   fdList.innerHTML='';
-  if(/^https?:\/\//.test(q)){ importFromUG(q); return; }
+  if(/^https?:\/\//.test(q)){ importFromUG(q); return; }   // UG or tab4u link
   fdStatus.textContent='Searching…'; $('#fdGo').disabled=true;
   try{
     const {results}=await ugApi({q});
     $('#fdGo').disabled=false;
     if(!results.length){ fdStatus.textContent='Nothing found for "'+q+'". Try artist and song name.'; return; }
-    fdStatus.textContent=results.length+' chord versions. Highest rated first.';
+    fdStatus.textContent=results.length+' result'+(results.length>1?'s':'')+(results.some(r=>r.source==='tab4u')?' · Hebrew from tab4u':' · highest rated first');
     results.forEach(r=>{
       const li=document.createElement('li');
-      li.innerHTML=`<div class="res"><span class="t">${esc(r.title)}<small>${esc(r.artist)}${r.version>1?' · ver '+r.version:''}</small></span><span class="meta">★ ${r.rating.toFixed(1)} (${r.votes.toLocaleString()})</span><button class="primary">Import</button></div>`;
+      li.innerHTML=`<div class="res"><span class="t">${esc(r.title)}<small>${esc(r.artist)}${r.version>1?' · ver '+r.version:''}</small></span><span class="meta">${r.source==='tab4u'?'tab4u':'UG · ★ '+r.rating.toFixed(1)+' ('+r.votes.toLocaleString()+')'}</span><button class="primary">Import</button></div>`;
       li.querySelector('button').onclick=function(){ importFromUG(r.url,this); };
       fdList.appendChild(li);
     });
@@ -812,6 +828,7 @@ let lastRendered='';
 function renderSheet(keepPos){
   const s=cur(); if(!s) return; const n=effTr(s);
   const html=renderBody(s.body||'',n);
+  pre.dir=HEBREW.test(s.body||'')?'rtl':'ltr';
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');

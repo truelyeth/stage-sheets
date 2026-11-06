@@ -31,6 +31,6 @@ It runs in your own browser, so it uses your UG login and never touches a server
 
 ## Find on UG (search by name)
 
-The "Find on UG" button searches Ultimate Guitar by name and imports the version you pick. It uses
+The "Find on UG" button searches by name and imports the version you pick. Hebrew names go to tab4u first, then Ultimate Guitar; English the other way round. Hebrew sheets render right-to-left with chords aligned the way tab4u lays them out. It uses
 the serverless function in `api/ug.js` (deployed by Vercel automatically). Ultimate Guitar may block
 server-side fetches; when it does the app says so and the Send bookmark still works.
