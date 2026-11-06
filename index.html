@@ -274,6 +274,7 @@ Paste your chord sheet here"></textarea></label>
   <h2 style="font-size:18px;margin:28px 0 10px">On stage</h2>
   <label class="toggle"><input type="checkbox" id="setCountIn"> Count in 3-2-1 before scrolling starts (the 3·2·1 button on stage overrides this per song; tap again during the count to start right away)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setHideBar"> Hide the controls while scrolling (tap the sheet to pause and bring them back)</label>
+  <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setMetro"> Show the beat automatically when a song opens (♩ on stage turns it off for that song)</label>
 </div>
 
 <div id="io" class="wrap io" hidden>
@@ -309,7 +310,7 @@ const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
 function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
-const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -705,7 +706,8 @@ async function importFromHash(){
 $('#setRepo').textContent=REPO;
 $('#btnSettings').onclick=()=>{ $('#setToken').value=token(); $('#setStatus').textContent=token()?'A token is saved on this device.':'No token on this device.'; show('settings'); window.scrollTo(0,0); };
 $('#setBack').onclick=()=>{ show('library'); renderLibrary(); };
-$('#setCountIn').checked=pref('countin',true); $('#setHideBar').checked=pref('hidebar',true);
+$('#setCountIn').checked=pref('countin',true); $('#setHideBar').checked=pref('hidebar',true); $('#setMetro').checked=pref('metro',false);
+$('#setMetro').onchange=e=>setPref('metro',e.target.checked);
 $('#setCountIn').onchange=e=>setPref('countin',e.target.checked);
 $('#setHideBar').onchange=e=>setPref('hidebar',e.target.checked);
 $('#setSave').onclick=async function(){
@@ -729,7 +731,7 @@ function openStage(i){
   state.curId=vs[i].id;
   renderSingers();
   const s=cur();
-  stopScroll(); mtStop(); renderTempo();
+  stopScroll(); mtStop(); renderTempo(); if(s.metro!==false&&pref('metro',false)) mtStart();
   renderSheet(false);
   speedIn.value=s.speed; speedVal.textContent=s.speed;
   applyFont();
@@ -761,8 +763,8 @@ function renderSheet(keepPos){
 function applyFont(){ pre.style.fontSize=state.font+'px'; }
 
 function setFont(f){ state.font=Math.max(14,Math.min(60,Math.round(f))); applyFont(); saveLocal(); }
-$('#fsUp').onclick=()=>setFont(state.font+2);
-$('#fsDown').onclick=()=>setFont(state.font-2);
+holdable($('#fsUp'),()=>setFont(state.font+2));
+holdable($('#fsDown'),()=>setFont(state.font-2));
 function fitSize(){
   const c=document.createElement('canvas').getContext('2d');
   c.font='400 100px '+getComputedStyle(pre).fontFamily;
@@ -775,8 +777,8 @@ $('#fsFit').onclick=()=>{ const f=fitSize(); if(f){ setFont(f); toast('Fit to '+
 
 // transpose is remembered per song, and separately per singer when one is chosen
 async function setTr(n){ const s=cur(); n=Math.max(-11,Math.min(11,n)); if(state.singer){ s.keys=s.keys||{}; s.keys[state.singer]=n; } else s.tr=n; renderSheet(true); await writeSong(s); }
-$('#trUp').onclick=()=>setTr(effTr(cur())+1);
-$('#trDown').onclick=()=>setTr(effTr(cur())-1);
+holdable($('#trUp'),()=>setTr(effTr(cur())+1));
+holdable($('#trDown'),()=>setTr(effTr(cur())-1));
 const singerSel=$('#singer');
 function renderSingers(){
   singerSel.innerHTML='<option value="">Me</option>'+state.singers.map(n=>`<option value="${esc(n)}" ${n===state.singer?'selected':''}>${esc(n)}</option>`).join('')+'<option value="__add">Add singer…</option>';
@@ -798,9 +800,21 @@ speedIn.addEventListener('input',()=>{ const v=+speedIn.value; speedVal.textCont
 let speedT=0;
 function commitSpeed(){ clearTimeout(speedT); speedT=setTimeout(()=>{ const s=cur(); if(s) writeSong(s); },600); }
 speedIn.addEventListener('change',commitSpeed);
+// hold a −/+ button: first step on press, then repeats that get faster the longer you hold
+function holdable(btn,fn){
+  let t=0, delay=0, held=false;
+  const stop=()=>{ clearTimeout(t); t=0; };
+  const loop=()=>{ fn(); delay=Math.max(40,delay*0.8); t=setTimeout(loop,delay); };
+  const start=e=>{ if(e.button&&e.button!==0) return; e.preventDefault(); held=true; fn(); delay=400; stop(); t=setTimeout(loop,delay); };
+  const end=()=>{ stop(); setTimeout(()=>{held=false;},0); };
+  btn.addEventListener('pointerdown',start); btn.addEventListener('pointerup',end); btn.addEventListener('pointercancel',end); btn.addEventListener('pointerleave',end);
+  btn.addEventListener('contextmenu',e=>e.preventDefault());
+  btn.onclick=e=>{ if(held) e.preventDefault(); };   // the pointerdown already did the first step
+  btn.style.touchAction='none'; btn.style.userSelect='none'; btn.style.webkitUserSelect='none';
+}
 function nudgeSpeed(d){ speedIn.value=Math.min(120,Math.max(1,+speedIn.value+d)); speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
-$('#spDown').onclick=()=>nudgeSpeed(-1);
-$('#spUp').onclick=()=>nudgeSpeed(1);
+holdable($('#spDown'),()=>nudgeSpeed(-1));
+holdable($('#spUp'),()=>nudgeSpeed(1));
 
 function tick(t){
   if(!playing) return;
@@ -841,12 +855,12 @@ function mtTick(t){
   if(t>=mtNext){ mtBeat=mtBeat%beatsOf(s)+1; mtFlash(mtBeat===1); mtNext+=per; if(t-mtNext>per) mtNext=t+per; }
   mtRaf=requestAnimationFrame(mtTick);
 }
-function mtStart(){ const s=cur(); if(!s) return; if(!s.bpm){ s.bpm=90; renderTempo(); commitTempo(); } mtOn=true; mtBeat=0; mtNext=performance.now(); metro.hidden=false; mtToggle.classList.add('on'); cancelAnimationFrame(mtRaf); mtRaf=requestAnimationFrame(mtTick); }
+function mtStart(){ const s=cur(); if(!s) return; if(!s.bpm){ s.bpm=90; renderTempo(); commitTempo(); } if(s.metro===false){ s.metro=true; commitTempo(); } mtOn=true; mtBeat=0; mtNext=performance.now(); metro.hidden=false; mtToggle.classList.add('on'); cancelAnimationFrame(mtRaf); mtRaf=requestAnimationFrame(mtTick); }
 function mtStop(){ mtOn=false; cancelAnimationFrame(mtRaf); metro.hidden=true; metro.classList.remove('tick','one'); metroFlash.classList.remove('tick','one'); mtToggle.classList.remove('on'); }
-mtToggle.onclick=()=>mtOn?mtStop():mtStart();
+mtToggle.onclick=()=>{ if(mtOn){ mtStop(); const s=cur(); if(s){ s.metro=false; commitTempo(); } toast('Beat off for this song'); } else mtStart(); };
 function setBpm(v){ const s=cur(); if(!s) return; s.bpm=Math.max(30,Math.min(300,Math.round(v))); renderTempo(); commitTempo(); if(mtOn){ mtNext=performance.now(); mtBeat=0; } }
-$('#bpmUp').onclick=()=>setBpm((cur().bpm||90)+1);
-$('#bpmDown').onclick=()=>setBpm((cur().bpm||90)-1);
+holdable($('#bpmUp'),()=>setBpm((cur().bpm||90)+1));
+holdable($('#bpmDown'),()=>setBpm((cur().bpm||90)-1));
 $('#mtTap').onclick=()=>{
   const now=performance.now(); if(taps.length&&now-taps[taps.length-1]>2000) taps=[]; taps.push(now); if(taps.length>8) taps.shift();
   if(taps.length>=2){ const iv=(taps[taps.length-1]-taps[0])/(taps.length-1); setBpm(60000/iv); if(!mtOn) mtStart(); mtNext=now; mtBeat=0; toast('Tempo '+cur().bpm+' bpm'); }
