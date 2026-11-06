@@ -28,12 +28,19 @@ async function getHtml(url) {
 }
 const g = (o, p) => p.reduce((a, k) => (a == null ? a : a[k]), o);
 
-/* ---------------- Ultimate Guitar ---------------- */
+/* ---------------- Ultimate Guitar (request + parsing kept identical to the version that worked) ---------------- */
+function unescapeHtml(s) {
+  return s.replace(/&quot;/g, '"').replace(/&#0*39;/g, "'").replace(/&#x27;/gi, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x2F;/gi, '/').replace(/&amp;/g, '&');
+}
 async function ugStore(url) {
-  const html = await getHtml(url);
+  const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9' }, redirect: 'follow' });
+  const html = await r.text();
   const m = html.match(/class="js-store"[^>]*data-content="([^"]*)"/);
-  if (!m) throw new Error('nostore');
-  return JSON.parse(decodeEntities(m[1]));
+  if (!m) {
+    const blocked = r.status === 403 || r.status === 429 || r.status === 503 || /cf-chl|challenge-platform|Just a moment/i.test(html);
+    const e = new Error(blocked ? 'blocked' : 'nostore'); e.status = r.status; throw e;
+  }
+  return JSON.parse(unescapeHtml(m[1]));
 }
 async function ugSearch(q) {
   const j = await ugStore('https://www.ultimate-guitar.com/search.php?search_type=title&value=' + encodeURIComponent(q));
@@ -61,6 +68,7 @@ function tab4uNameFromUrl(href) {
   // /tabs/songs/2137_עברי_לידר_-_יותר_טוב_כלום.html  -> artist "עברי לידר", song "יותר טוב כלום"
   const m = href.match(/tabs\/songs\/(?:\d+_)?([^?#]*?)\.html/); if (!m) return null;
   let s; try { s = decodeURIComponent(m[1]); } catch (e) { s = m[1]; }
+  s = decodeEntities(s);
   const parts = s.split('_-_');
   const clean = x => x.replace(/_/g, ' ').trim();
   return parts.length >= 2 ? { artist: clean(parts[0]), title: clean(parts.slice(1).join(' - ')) } : { artist: '', title: clean(s) };
@@ -114,7 +122,7 @@ async function tab4uTab(url) {
 async function siteDebug(q, which) {
   const url = which === 'ug' ? 'https://www.ultimate-guitar.com/search.php?search_type=title&value=' + encodeURIComponent(q)
                              : 'https://www.tab4u.com/resultsSimple?tab=songs&q=' + encodeURIComponent(q);
-  const r = await fetch(url, { headers: browserHeaders(url), redirect: 'follow' });
+  const r = await fetch(url, { headers: which === 'ug' ? { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9' } : browserHeaders(url), redirect: 'follow' });
   const html = await r.text();
   const links = []; const re = /href=["']([^"']*)["']/gi; let m; while ((m = re.exec(html)) && links.length < 400) links.push(m[1]);
   return { site: which, status: r.status, finalUrl: r.url, length: html.length, hasStore: /class="js-store"/.test(html), title: (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1],
@@ -130,7 +138,9 @@ async function search(q) {
     if (results.length >= 5) break;
     try { const r = await fn(q); results = results.concat(r); if (!r.length) errors.push((fn === ugSearch ? 'Ultimate Guitar' : 'tab4u') + ': no results'); } catch (e) { errors.push((fn === ugSearch ? 'Ultimate Guitar' : 'tab4u') + ': ' + (/blocked|nostore/.test(e.message) ? 'blocked the search' : e.message)); }
   }
-  return { results: results.slice(0, 25), errors };
+  const first = HEB.test(q) ? 'tab4u' : 'UG';
+  results.sort((a, b) => (a.source === first ? 0 : 1) - (b.source === first ? 0 : 1));   // preferred site first, its own order kept
+  return { results: results.slice(0, 25), errors, first };
 }
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

@@ -77,7 +77,8 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick label{flex-direction:row;align-items:center;gap:12px;font-size:17px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
 .pick input{width:22px;height:22px;accent-color:var(--accent)}
 .pick .k{font-family:var(--mono);color:var(--chord);font-size:14px;margin-left:auto}
-.pick .res{flex-direction:row;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.pick .res{display:flex;flex-direction:row;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.pick .res button{flex:none}
 .pick .res .meta{color:var(--muted);font-size:13px;white-space:nowrap}
 .pick .res .t{flex:1;min-width:0}
 .pick .res .t small{display:block;color:var(--muted);font-weight:400}
@@ -768,10 +769,11 @@ $('#fdForm').onsubmit=async e=>{
   if(/^https?:\/\//.test(q)){ importFromUG(q); return; }   // UG or tab4u link
   fdStatus.textContent='Searching…'; $('#fdGo').disabled=true;
   try{
-    const {results}=await ugApi({q});
+    const {results,errors}=await ugApi({q});
     $('#fdGo').disabled=false;
     if(!results.length){ fdStatus.textContent='Nothing found for "'+q+'". Try artist and song name.'; return; }
-    fdStatus.textContent=results.length+' result'+(results.length>1?'s':'')+(results.some(r=>r.source==='tab4u')?' · Hebrew from tab4u':' · highest rated first');
+    const note=(errors||[]).filter(e=>/blocked/.test(e)).map(e=>e.replace(': blocked the search',' blocked the search; showing the other site')).join('. ');
+    fdStatus.textContent=results.length+' result'+(results.length>1?'s':'')+(results[0].source==='UG'?' · Ultimate Guitar first, highest rated':' · tab4u first')+(note?'. '+note:'');
     results.forEach(r=>{
       const li=document.createElement('li');
       li.innerHTML=`<div class="res"><span class="t">${esc(r.title)}<small>${esc(r.artist)}${r.version>1?' · ver '+r.version:''}</small></span><span class="meta">${r.source==='tab4u'?'tab4u':'UG · ★ '+r.rating.toFixed(1)+' ('+r.votes.toLocaleString()+')'}</span><button class="primary">Import</button></div>`;
