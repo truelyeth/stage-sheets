@@ -129,10 +129,14 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .sheet .c{color:var(--chord);font-weight:600}
 .sheet .leadin{height:40vh;border-bottom:1px dashed color-mix(in srgb,var(--muted) 35%,transparent);margin:0 0 .6em}
 .sheet .tail{height:70vh}
-.sheet .pair{display:block}
+.sheet .pair{display:block;padding-inline-start:2.5ch;text-indent:-2.5ch}
+.sheet .pair .cell{text-indent:0}
 .sheet .cell{display:inline-block;vertical-align:bottom;white-space:pre}
 .sheet .cell .ch{display:block;color:var(--chord);font-weight:600;min-height:1.42em}
 .sheet .cell .ly{display:block;min-height:1.42em}
+.sheet .cell .ly:empty{min-height:0}
+.sheet .cell .ch:empty{min-height:0}
+.sheet .cell.after{margin-inline-start:1ch}
 .sheet .s{color:var(--section);font-weight:600;display:inline-block;margin-top:.6em;letter-spacing:.02em}
 .sheet .end{display:block;margin-top:2em;color:var(--muted);font-size:.6em;font-family:var(--sans);letter-spacing:.1em;text-transform:uppercase}
 .bar{flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
@@ -306,6 +310,7 @@ Paste your chord sheet here"></textarea></label>
   <label class="toggle"><input type="checkbox" id="setCountIn"> Count in 3-2-1 before scrolling starts (the 3·2·1 button on stage overrides this per song; tap again during the count to start right away)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setHideBar"> Hide the controls while scrolling (tap the sheet to pause and bring them back)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setMetro"> Show the beat automatically when a song opens (♩ on stage turns it off for that song)</label>
+  <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setAutofit"> Shrink text so the longest line fits the screen (never below 14px; your A− A+ size is the ceiling)</label>
 </div>
 
 <div id="io" class="wrap io" hidden>
@@ -463,6 +468,17 @@ function prefersFlats(body){
   return f>s;
 }
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// key from the chords themselves: the last chord of the sheet is nearly always the tonic; falls back to the first
+function chordRoots(body){ const out=[]; for(const l of body.split('\n')) if(isChordLine(l)) for(const t of l.trim().split(/\s+/)) if(CHORD.test(t)){ const m=t.replace(/^\(/,'').match(/^([A-G](?:#|b)?)(m(?!aj))?/); if(m) out.push(m[1]+(m[2]||'')); } return out; }
+function detectKey(body){ const r=chordRoots(body||''); return r.length?r[r.length-1]:''; }
+// the stated key is trusted only if its root actually occurs in the sheet
+function effectiveKey(s){
+  const stated=(s.key||'').trim(); const roots=chordRoots(s.body||'');
+  if(!roots.length) return {key:stated,fromChords:false};
+  const root=(stated.match(/^[A-G](?:#|b)?/)||[])[0];
+  if(root&&roots.some(x=>IDX[x.replace(/m$/,'')]===IDX[root])) return {key:stated,fromChords:false};
+  return {key:detectKey(s.body),fromChords:true};
+}
 function renderChordLine(line,n,flats){
   // rebuild the line token by token, keeping each chord at its original column so it stays over the right syllable
   let out='', col=0, m; const re=/\S+/g;
@@ -507,10 +523,12 @@ function renderPair(cl,ll,n,flats){
     cells.push([start,b]); a=b; i++;
   }
   const tailEnd=Math.max(tcl.replace(/\s+$/,'').length,ll.replace(/\s+$/,'').length);
-  if(a<tailEnd) cells.push([a,tailEnd]);
-  return '<span class="pair">'+cells.map(([x,y])=>'<span class="cell"><span class="ch">'+markChords(tcl.slice(x,y).replace(/\s+$/,''))+'</span><span class="ly">'+esc(ll.slice(x,y).replace(/\s+$/,''))+'</span></span>').join(' ')+'</span>';
+  const out=cells.map(([x,y])=>'<span class="cell"><span class="ch">'+markChords(tcl.slice(x,y).replace(/\s+$/,''))+'</span><span class="ly">'+esc(ll.slice(x,y).replace(/\s+$/,''))+'</span></span>');
+  if(a<tailEnd){ const tc=tcl.slice(a,tailEnd).trim(), tl=ll.slice(a,tailEnd).trim(); if(tc||tl) out.push('<span class="cell after"><span class="ch">'+markChords(tc)+'</span><span class="ly">'+esc(tl)+'</span></span>'); }
+  return '<span class="pair">'+out.join(' ')+'</span>';
 }
 function renderBody(body,n){
+  body=decodeEntities(body);
   const flats=prefersFlats(body);
   const out=[];
   const lines=body.replace(/\r/g,'').split('\n');
@@ -566,7 +584,7 @@ function renderLibrary(){
   songs.forEach((s,i)=>{
     const tr=effTr(s);
     const li=document.createElement('li'); li.className='song';
-    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(s.key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
+    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(effectiveKey(s).key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
       <div class="tools"><button data-up="${i}" aria-label="Move up">▲</button><button data-down="${i}" aria-label="Move down">▼</button></div>
       <div class="tools"><button data-edit="${s.id}" aria-label="Edit">Edit</button></div>
       <div class="tools"><a class="yt" target="_blank" rel="noopener" href="${esc(listenUrl(s,'yt'))}" aria-label="Hear it on YouTube">▶ YT</a><a class="sp" target="_blank" rel="noopener" href="${esc(listenUrl(s,'sp'))}" aria-label="Hear it on Spotify">♫ Sp</a></div>`;
@@ -650,8 +668,16 @@ $('#edDup').onclick=async function(){
   await writeSong(copy); show('library'); renderLibrary(); toast('Duplicated');
 };
 // --- paste helpers: Ultimate Guitar and most chord sites copy with markup and header lines we don't want on stage
+const ENT={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',hellip:'…',mdash:'—',ndash:'–',laquo:'«',raquo:'»',copy:'©',deg:'°',eacute:'é',egrave:'è',agrave:'à',ccedil:'ç',ntilde:'ñ',uuml:'ü',ouml:'ö',auml:'ä',szlig:'ß'};
+function decodeEntities(t){
+  if(t.indexOf('&')<0) return t;
+  return t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,(m,c)=>{
+    if(c[0]==='#'){ const n=c[1]==='x'||c[1]==='X'?parseInt(c.slice(2),16):parseInt(c.slice(1),10); return isNaN(n)?m:String.fromCodePoint(n); }
+    const k=c.toLowerCase(); return k in ENT?ENT[k]:m;
+  });
+}
 function cleanSheet(text){
-  let t=text.replace(/\r/g,'').replace(/\t/g,'    ');
+  let t=decodeEntities(text).replace(/\r/g,'').replace(/\t/g,'    ');
   t=t.replace(/\[\/?(tab|ch)\]/gi,'');                                    // UG raw markup
   const meta={};
   const lines=t.split('\n'); const keep=[];
@@ -734,7 +760,8 @@ async function importSong(o){
   const {body,meta}=cleanSheet(String(o.body||''));
   if(!body.trim()){ toast('Import failed: empty sheet'); return; }
   const title=String(o.title||meta.title||'Untitled').trim(), artist=String(o.artist||meta.artist||'').trim();
-  const key=String(o.key||meta.key||'').trim(), capo=Math.max(0,Math.min(9,+o.capo||meta.capo||0));
+  let key=String(o.key||meta.key||'').trim(); const capo=Math.max(0,Math.min(9,+o.capo||meta.capo||0));
+  { const ek=effectiveKey({key,body}); if(ek.fromChords) key=ek.key; }
   const same=(a,b)=>(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
   const ex=state.songs.find(s=>same(s.title,title)&&same(s.artist,artist));
   const bpm=Math.max(0,Math.min(300,Math.round(+o.bpm)||0));
@@ -791,6 +818,7 @@ $('#setCountIn').checked=pref('countin',true); $('#setHideBar').checked=pref('hi
 $('#setMetro').onchange=e=>setPref('metro',e.target.checked);
 $('#setCountIn').onchange=e=>setPref('countin',e.target.checked);
 $('#setHideBar').onchange=e=>setPref('hidebar',e.target.checked);
+$('#setAutofit').checked=pref('autofit',true); $('#setAutofit').onchange=e=>setPref('autofit',e.target.checked);
 $('#setSave').onclick=async function(){
   const t=$('#setToken').value.trim(); if(!t){ toast('Paste a token first'); return; }
   try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){ toast('This browser blocks storage'); return; }
@@ -821,8 +849,8 @@ function openStage(i){
   stopScroll(); mtStop(); renderTempo(); if(s.metro!==false&&pref('metro',false)) mtStart();
   renderSheet(false);
   speedIn.value=s.speed; speedVal.textContent=s.speed;
-  applyFont();
   show('stage');
+  applyFont(); (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(applyFont);
   sheet.scrollTop=0; pos=0;
   requestWake();
 }
@@ -834,11 +862,12 @@ function renderSheet(keepPos){
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
-  let k=s.key||'';
+  const ek=effectiveKey(s); let k=ek.key, base=k;
   const parts=[];
   if(state.singer) parts.push('Singer: '+state.singer);
-  if(k&&n){ const m=k.match(/^([A-G](?:#|b)?)(.*)$/); if(m) k=trRoot(m[1],n,prefersFlats(s.body||''))+m[2]; parts.push(k+' (was '+s.key+')'); }
+  if(k&&n){ const m=k.match(/^([A-G](?:#|b)?)(.*)$/); if(m) k=trRoot(m[1],n,prefersFlats(s.body||''))+m[2]; parts.push(k+' (was '+base+')'); }
   else if(k) parts.push(k);
+  if(ek.fromChords&&s.key) parts.push('key read from the chords; the saved key "'+s.key+'" is not in this sheet');
   if(s.capo) parts.push('Capo '+s.capo);
   if(n){ // same sound with the original chord shapes: move the capo by the transposition instead
     const alt=(s.capo||0)+n;
@@ -848,7 +877,12 @@ function renderSheet(keepPos){
   $('#stKey').textContent=parts.join('  ·  ');
   $('#trVal').textContent=(n>0?'+':'')+n;
 }
-function applyFont(){ pre.style.fontSize=state.font+'px'; }
+function applyFont(){
+  let f=state.font;
+  if(pref('autofit',true)&&cur()){ const fit=fitSize(); if(fit&&fit<f) f=Math.max(14,Math.floor(fit)); }
+  pre.style.fontSize=f+'px';
+}
+window.addEventListener('resize',()=>{ if(!screens.stage.hidden) applyFont(); });
 
 function setFont(f){ state.font=Math.max(14,Math.min(60,Math.round(f))); applyFont(); saveLocal(); }
 holdable($('#fsUp'),()=>setFont(state.font+2));
@@ -862,6 +896,7 @@ function fitSize(){
   return 100*avail/maxW;
 }
 $('#fsFit').onclick=()=>{ const f=fitSize(); if(f){ setFont(f); toast('Fit to '+state.font+'px'); } };
+function fitNote(){ const f=parseFloat(pre.style.fontSize); if(pref('autofit',true)&&f&&f<state.font) toast('Shrunk to '+f+'px so lines fit; A− A+ still set the ceiling'); }
 
 // transpose is remembered per song, and separately per singer when one is chosen
 async function setTr(n){ const s=cur(); n=Math.max(-11,Math.min(11,n)); if(state.singer){ s.keys=s.keys||{}; s.keys[state.singer]=n; } else s.tr=n; renderSheet(true); await writeSong(s); }
