@@ -103,6 +103,27 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .metro-flash.tick{opacity:1}
 .metro-flash.one{background:var(--accent);opacity:1}
 #mtToggle.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
+/* chord diagrams */
+.sheet .c{cursor:pointer;border-radius:4px}
+.sheet .c:active{background:color-mix(in srgb,var(--chord) 25%,transparent)}
+.chordcard{position:fixed;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px 8px;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;gap:4px;max-width:calc(100vw - 32px)}
+.chordcard[hidden]{display:none}
+.chordcard .nm{font-family:var(--mono);font-weight:600;color:var(--chord);font-size:20px}
+.chordcard .alt{font-size:12px;color:var(--muted)}
+.chordcard svg{display:block}
+.chordcard .x{position:absolute;top:4px;right:6px;min-height:28px;height:28px;min-width:28px;padding:0;border:0;background:transparent;color:var(--muted);font-size:16px}
+.chordstrip{flex:none;background:var(--surface);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top,0px)) var(--gutter-r) 8px var(--gutter-l);display:flex;gap:14px;overflow-x:auto;overscroll-behavior:contain}
+.chordstrip[hidden]{display:none}
+.chordstrip .one{display:flex;flex-direction:column;align-items:center;flex:none;gap:2px}
+.chordstrip .one .nm{font-family:var(--mono);font-weight:600;color:var(--chord);font-size:15px}
+.diag .s{stroke:var(--fg);stroke-width:1.2}
+.diag .nut{stroke:var(--fg);stroke-width:5}
+.diag .dot{fill:var(--chord)}
+.diag .barre{fill:var(--chord);opacity:.9}
+.diag .lbl{font:600 11px var(--sans);fill:var(--fg)}
+.diag .mute{font:600 11px var(--sans);fill:var(--muted)}
+.diag .fret{font:600 12px var(--mono);fill:var(--muted)}
+#btnChords.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
 @media (prefers-reduced-motion:reduce){ .metro{transition:none} }
 /* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
 .zone{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 6px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
@@ -224,8 +245,10 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 </div>
 
 <div id="stage" hidden>
+  <div id="chordStrip" class="chordstrip" hidden></div>
   <div id="sheet" class="sheet"><div class="leadin"></div><div id="sheetNotes" class="notes" hidden></div><pre id="sheetBody"></pre><div class="tail"></div></div>
   <div id="count" class="count" hidden>3</div>
+  <div id="chordCard" class="chordcard" hidden></div>
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
   <div class="barwrap">
@@ -251,6 +274,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     </div>
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
+      <button id="btnChords" aria-label="Show the chord shapes used in this song">Chords</button>
       <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
@@ -901,8 +925,10 @@ function renderSheet(keepPos){
   const html=renderBody(s.body||'',n);
   pre.dir=HEBREW.test(s.body||'')?'rtl':'ltr';
   const notesEl=$('#sheetNotes'); notesEl.textContent=s.notes||''; notesEl.hidden=!s.notes;
+  chordCard.hidden=true;
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
+  if(!chordStrip.hidden) renderStrip();
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
   const ek=effectiveKey(s); let k=ek.key, base=k;
   const parts=[];
@@ -1044,6 +1070,96 @@ $('#mtTap').onclick=()=>{
   else toast('Keep tapping…');
 };
 $('#mtBeats').onclick=()=>{ const s=cur(); if(!s) return; const order=[4,3,6,2]; s.beats=order[(order.indexOf(beatsOf(s))+1)%order.length]; renderTempo(); commitTempo(); if(mtOn){ mtBeat=0; mtNext=performance.now(); } };
+/* ---------- chord shapes ----------
+   Shape = {f:[6 strings low E→high e: fret number, 0 open, -1 muted], b:[fret,fromString,toString] optional barre, base: first fret shown}.
+   Open-position shapes for the usual keys; everything else comes from E-form and A-form barre templates moved to the right fret. */
+const OPEN={
+ 'C':[-1,3,2,0,1,0],'A':[-1,0,2,2,2,0],'G':[3,2,0,0,0,3],'E':[0,2,2,1,0,0],'D':[-1,-1,0,2,3,2],'F':[1,3,3,2,1,1],
+ 'Am':[-1,0,2,2,1,0],'Em':[0,2,2,0,0,0],'Dm':[-1,-1,0,2,3,1],
+ 'C7':[-1,3,2,3,1,0],'A7':[-1,0,2,0,2,0],'G7':[3,2,0,0,0,1],'E7':[0,2,0,1,0,0],'D7':[-1,-1,0,2,1,2],'B7':[-1,2,1,2,0,2],
+ 'Am7':[-1,0,2,0,1,0],'Em7':[0,2,2,0,3,0],'Dm7':[-1,-1,0,2,1,1],
+ 'Cmaj7':[-1,3,2,0,0,0],'Amaj7':[-1,0,2,1,2,0],'Gmaj7':[3,2,0,0,0,2],'Emaj7':[0,2,1,1,0,0],'Dmaj7':[-1,-1,0,2,2,2],'Fmaj7':[-1,-1,3,2,1,0],
+ 'Asus2':[-1,0,2,2,0,0],'Dsus2':[-1,-1,0,2,3,0],'Esus4':[0,2,2,2,0,0],'Asus4':[-1,0,2,2,3,0],'Dsus4':[-1,-1,0,2,3,3],'Gsus4':[3,3,0,0,1,3],
+ 'Cadd9':[-1,3,2,0,3,0],'Gadd9':[3,2,0,2,0,3],'Dadd9':[-1,-1,0,2,3,0],'Eadd9':[0,2,2,1,0,2],
+ 'A7sus4':[-1,0,2,0,3,0],'E7sus4':[0,2,0,2,0,0],'D7sus4':[-1,-1,0,2,1,3],
+ 'Cm':[-1,3,5,5,4,3],'Bm':[-1,2,4,4,3,2],'F#m':[2,4,4,2,2,2],'Bm7':[-1,2,0,2,0,2],'F#m7':[2,4,2,2,2,2],'Bb':[-1,1,3,3,3,1],'B':[-1,2,4,4,4,2],
+ 'E5':[0,2,2,-1,-1,-1],'A5':[-1,0,2,2,-1,-1],'D5':[-1,-1,0,2,3,-1],'G5':[3,5,5,-1,-1,-1],'C5':[-1,3,5,5,-1,-1],
+ 'Edim':[0,1,2,0,-1,-1],'Adim':[-1,0,1,2,1,-1],'Ddim':[-1,-1,0,1,0,1],'Bdim':[-1,2,3,4,3,-1],
+ 'Am6':[-1,0,2,2,1,2],'Em6':[0,2,2,0,2,0],'A6':[-1,0,2,2,2,2],'E6':[0,2,2,1,2,0],'D6':[-1,-1,0,2,0,2],'G6':[3,2,0,0,0,0],'C6':[-1,3,2,2,1,0],
+ 'Aaug':[-1,0,3,2,2,1],'Eaug':[0,3,2,1,1,0],'Caug':[-1,3,2,1,1,0],
+ 'A9':[-1,0,2,4,2,3],'E9':[0,2,0,1,0,2],'D9':[-1,-1,0,2,1,0],'C9':[-1,3,2,3,3,3],'G9':[3,2,0,2,0,1],
+ 'Am7b5':[-1,0,1,0,1,-1],'Bm7b5':[-1,2,3,2,3,-1],'Em7b5':[0,1,0,0,3,0],'Dm7b5':[-1,-1,0,1,1,1],'F#m7b5':[2,-1,2,2,1,-1],
+ 'Bbm':[-1,1,3,3,2,1],'Cm7':[-1,3,5,3,4,3],'Gm':[3,5,5,3,3,3],'Gm7':[3,5,3,3,3,3],'Fm':[1,3,3,1,1,1],'Fm7':[1,3,1,1,1,1]
+};
+// barre templates relative to the barre fret (E-form rooted on string 6, A-form on string 5)
+const EFORM={'':[0,2,2,1,0,0],'m':[0,2,2,0,0,0],'7':[0,2,0,1,0,0],'m7':[0,2,0,0,0,0],'maj7':[0,2,1,1,0,0],'sus4':[0,2,2,2,0,0],'7sus4':[0,2,0,2,0,0],'sus2':[0,2,4,4,0,0],'6':[0,2,2,1,2,0],'m6':[0,2,2,0,2,0],'add9':[0,2,2,1,0,2],'9':[0,2,0,1,0,2],'5':[0,2,2,-1,-1,-1],'dim':[0,1,2,0,-1,-1],'m7b5':[0,1,0,0,3,0],'aug':[0,3,2,1,1,0]};
+const AFORM={'':[-1,0,2,2,2,0],'m':[-1,0,2,2,1,0],'7':[-1,0,2,0,2,0],'m7':[-1,0,2,0,1,0],'maj7':[-1,0,2,1,2,0],'sus4':[-1,0,2,2,3,0],'7sus4':[-1,0,2,0,3,0],'sus2':[-1,0,2,2,0,0],'6':[-1,0,2,2,2,2],'m6':[-1,0,2,2,1,2],'add9':[-1,0,2,4,2,0],'9':[-1,0,2,4,2,3],'5':[-1,0,2,2,-1,-1],'dim':[-1,0,1,2,1,-1],'m7b5':[-1,0,1,0,1,-1],'aug':[-1,0,3,2,2,1]};
+const QUAL_ALIAS={'M':'','maj':'','min':'m','-':'m','M7':'maj7','Maj7':'maj7','ma7':'maj7','mi7':'m7','min7':'m7','-7':'m7','dim7':'dim','°':'dim','°7':'dim','ø':'m7b5','ø7':'m7b5','m7-5':'m7b5','+':'aug','sus':'sus4','2':'sus2','4':'sus4','add2':'add9','madd9':'m','maj9':'maj7','m9':'m7','11':'7sus4','13':'7','7sus2':'7sus4'};
+function parseChord(name){
+  const m=String(name).replace(/^\(|\)$/g,'').replace(/\*$/,'').match(/^([A-G](?:#|b)?)([^\/]*)(?:\/([A-G](?:#|b)?))?$/); if(!m) return null;
+  let q=m[2]||''; if(q in QUAL_ALIAS) q=QUAL_ALIAS[q];
+  if(!(q in EFORM)){ // unknown extension: fall back to its family
+    if(/^m/.test(q)) q=/7/.test(q)?'m7':'m'; else if(/maj/.test(q)) q='maj7'; else if(/7|9|11|13/.test(q)) q='7'; else if(/sus/.test(q)) q='sus4'; else if(/dim/.test(q)) q='dim'; else if(/aug|\+/.test(q)) q='aug'; else q='';
+  }
+  return {root:m[1],q,bass:m[3]||''};
+}
+function shapesFor(name){
+  const p=parseChord(name); if(!p) return [];
+  const out=[]; const key=p.root+p.q;
+  const openName=Object.keys(OPEN).find(k=>{ const pk=parseChord(k); return pk&&IDX[pk.root]===IDX[p.root]&&pk.q===p.q; });
+  if(openName){ const f=OPEN[openName]; const fr=f.filter(x=>x>0); const mn=fr.length?Math.min(...fr):1; const hasOpen=f.includes(0);
+    const sh={f,base:hasOpen?1:mn,label:hasOpen?'open':'fret '+mn};
+    if(!hasOpen){ const idx=f.map((x,i)=>x===mn?i+1:0).filter(Boolean); if(idx.length>=3) sh.barre=[mn,idx[0],idx[idx.length-1]]; }
+    out.push(sh); }
+  const r=IDX[p.root]; const ef=((r-4)%12+12)%12||12, af=((r-9)%12+12)%12||12;     // fret of the root on string 6 / string 5
+  const mk=(tpl,fret,str)=>{ const f=tpl.map(x=>x<0?-1:x+fret); return {f,base:fret,barre:[fret,str,6],label:'barre '+fret}; };
+  if(EFORM[p.q]) out.push(mk(EFORM[p.q],ef,1));
+  if(AFORM[p.q]) out.push(mk(AFORM[p.q],af,2));
+  // prefer lower positions; keep at most 2
+  out.sort((a,b)=>(a.label==='open'?-1:0)-(b.label==='open'?-1:0)||a.base-b.base);
+  // the same position twice (table shape + template) adds nothing
+  for(let i=1;i<out.length;i++) if(out[i].base===out[0].base&&JSON.stringify(out[i].f)===JSON.stringify(out[0].f)) out.splice(i--,1);
+  return out.slice(0,2).map(sh=>Object.assign(sh,{bass:p.bass}));
+}
+function diagramSVG(sh,size){
+  const W=size||92, strings=6, frets=4, left=14, top=22, right=W-8, bottom=W+10;
+  const sx=(right-left)/(strings-1), fy=(bottom-top)/frets;
+  const frets_used=sh.f.filter(x=>x>0); const minF=frets_used.length?Math.min(...frets_used):1; const maxF=frets_used.length?Math.max(...frets_used):1;
+  const base=(maxF<=4)?1:(sh.base||minF); const showNut=base===1;
+  let g='';
+  for(let i=0;i<strings;i++){ const x=left+i*sx; g+=`<line class="s" x1="${x}" y1="${top}" x2="${x}" y2="${bottom}"/>`; }
+  for(let i=0;i<=frets;i++){ const y=top+i*fy; g+=`<line class="${i===0&&showNut?'nut':'s'}" x1="${left}" y1="${y}" x2="${right}" y2="${y}"/>`; }
+  if(!showNut) g+=`<text class="fret" x="${left-12}" y="${top+fy*0.65}" text-anchor="middle">${base}</text>`;
+  if(sh.barre){ const [bf,from,to]=sh.barre; const y=top+(bf-base+0.5)*fy; const x1=left+(from-1)*sx, x2=left+(to-1)*sx; g+=`<rect class="barre" x="${x1-6}" y="${y-5}" width="${x2-x1+12}" height="10" rx="5"/>`; }
+  sh.f.forEach((v,i)=>{ const x=left+i*sx;
+    if(v<0) g+=`<text class="mute" x="${x}" y="${top-7}" text-anchor="middle">×</text>`;
+    else if(v===0) g+=`<text class="lbl" x="${x}" y="${top-7}" text-anchor="middle">○</text>`;
+    else { const y=top+(v-base+0.5)*fy; g+=`<circle class="dot" cx="${x}" cy="${y}" r="6"/>`; }
+  });
+  return `<svg class="diag" viewBox="0 0 ${W} ${W+18}" width="${W}" height="${W+18}" aria-hidden="true">${g}</svg>`;
+}
+const chordCard=$('#chordCard'), chordStrip=$('#chordStrip');
+function showChordCard(name,anchor){
+  const shapes=shapesFor(name);
+  if(!shapes.length){ toast('No diagram for '+name); return; }
+  chordCard.innerHTML='<button class="x" aria-label="Close">✕</button><div class="nm">'+esc(name)+'</div><div style="display:flex;gap:14px">'+shapes.map(sh=>'<div style="display:flex;flex-direction:column;align-items:center">'+diagramSVG(sh,96)+'<div class="alt">'+esc(sh.label)+'</div></div>').join('')+'</div>'+(shapes[0].bass?'<div class="alt">bass note '+esc(shapes[0].bass)+'</div>':'');
+  chordCard.hidden=false;
+  const r=anchor.getBoundingClientRect(), cw=chordCard.offsetWidth, ch=chordCard.offsetHeight;
+  let x=Math.min(Math.max(8,r.left+r.width/2-cw/2),innerWidth-cw-8), y=r.bottom+8; if(y+ch>innerHeight-8) y=Math.max(8,r.top-ch-8);
+  chordCard.style.left=x+'px'; chordCard.style.top=y+'px';
+  chordCard.querySelector('.x').onclick=()=>{ chordCard.hidden=true; };
+}
+pre.addEventListener('click',e=>{ const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
+pre.addEventListener('pointerup',e=>{ if(e.target.closest('.c')) e.stopPropagation(); });
+pre.addEventListener('touchend',e=>{ if(e.target.closest('.c')) e.stopPropagation(); },{passive:true});
+document.addEventListener('click',e=>{ if(!chordCard.hidden&&!chordCard.contains(e.target)&&!e.target.closest('.c')) chordCard.hidden=true; });
+function songChords(){ const seen=[]; pre.querySelectorAll('.c').forEach(c=>{ const t=c.textContent.trim(); if(!seen.includes(t)) seen.push(t); }); return seen; }
+function renderStrip(){
+  const names=songChords();
+  chordStrip.innerHTML=names.map(n=>{ const sh=shapesFor(n)[0]; return '<div class="one" data-chord="'+esc(n)+'"><div class="nm">'+esc(n)+'</div>'+(sh?diagramSVG(sh,64):'<div class="alt">?</div>')+'</div>'; }).join('');
+}
+$('#btnChords').onclick=function(){ const on=chordStrip.hidden; if(on){ renderStrip(); chordStrip.hidden=false; } else chordStrip.hidden=true; this.classList.toggle('on',on); };
+chordStrip.addEventListener('click',e=>{ const o=e.target.closest('.one'); if(o) showChordCard(o.dataset.chord,o); });
 function applyMode(){ document.documentElement.dataset.mode=pref('outdoor',false)?'outdoor':''; if(!pref('outdoor',false)) delete document.documentElement.dataset.mode; }
 $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyMode(); toast(pref('outdoor',false)?'Outdoor mode on':'Outdoor mode off'); };
 applyMode();
