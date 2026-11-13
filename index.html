@@ -126,6 +126,21 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .diag .mute{font:600 11px var(--sans);fill:var(--muted)}
 .diag .fret{font:600 12px var(--mono);fill:var(--muted)}
 #btnChords.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
+#btnArrange.on{background:#c084fc;border-color:#c084fc;color:#1e0a2e}
+#btnMine.on{border-color:#c084fc;color:#c084fc}
+.sheet pre.arr .c{outline:1px dashed color-mix(in srgb,#c084fc 60%,transparent);outline-offset:2px}
+.sheet pre.arr .ly,.sheet pre.arr .w{cursor:pointer}
+.optcard{position:fixed;z-index:31;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;box-shadow:0 10px 30px rgba(0,0,0,.45);max-width:min(92vw,420px);max-height:70vh;overflow-y:auto;font-family:var(--sans)}
+.optcard[hidden]{display:none}
+.optcard h4{margin:0 24px 8px 0;font-size:15px;color:#c084fc;font-weight:600}
+.optcard .x{position:absolute;top:4px;right:6px;min-height:28px;height:28px;min-width:28px;padding:0;border:0;background:transparent;color:var(--muted);font-size:16px}
+.optcard .opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:44px;padding:6px 10px;margin:4px 0;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.optcard .opt b{font-family:var(--mono);color:var(--chord);min-width:7ch}
+.optcard .opt small{color:var(--muted);font-size:12px;line-height:1.3}
+.optcard .scope{display:flex;gap:6px;margin-top:8px;font-size:13px;color:var(--muted);align-items:center;flex-wrap:wrap}
+.optcard .scope button{min-height:32px;padding:0 10px;font-size:13px}
+.optcard .scope button.on{background:#c084fc;border-color:#c084fc;color:#1e0a2e}
+.optcard pre{font-family:var(--sans);white-space:pre-wrap;font-size:14px;line-height:1.45;margin:0 0 8px;color:var(--fg)}
 /* practice: hide by role, keep the layout; .peek on a line or section shows it again for a moment */
 #btnPractice.on{background:var(--section);border-color:var(--section);color:#07201b}
 .sheet .sec{display:block}
@@ -268,6 +283,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div id="count" class="count" hidden>3</div>
   <div id="chordCard" class="chordcard" hidden></div>
   <button id="barHandle" class="bar-handle" hidden aria-label="Show the controls">☰</button>
+  <div id="optCard" class="optcard" hidden></div>
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
   <div class="barwrap">
@@ -294,7 +310,8 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
       <button id="btnChords" aria-label="Show the chord shapes used in this song">Chords</button>
-      <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button><button id="prLess" class="icon" hidden aria-label="Show less">−</button><button id="prMore" class="icon" hidden aria-label="Show more">+</button>
+      <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button>
+      <button id="btnArrange" aria-label="Arrange mode: tap chords and lines to make your own version">Arrange</button><button id="btnIdeas" hidden aria-label="Arrangement ideas for this song">Ideas</button><button id="btnMine" hidden aria-label="Switch between the original and my version">Original</button><button id="prLess" class="icon" hidden aria-label="Show less">−</button><button id="prMore" class="icon" hidden aria-label="Show more">+</button>
       <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
@@ -353,7 +370,7 @@ G            C        G
 Paste your chord sheet here"></textarea></label>
     <div class="ed-foot">
       <button id="edDelete" class="danger">Delete song</button>
-      <button id="edDup">Duplicate</button>
+      <span style="display:flex;gap:8px"><button id="edResetMine" hidden>Discard my version</button><button id="edDup">Duplicate</button></span>
     </div>
   </div>
 </div>
@@ -421,7 +438,7 @@ const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
 function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
-const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.yt) d.yt=s.yt; if(s.sp) d.sp=s.sp; if(s.mycapo!=null&&s.mycapo!=='') d.mycapo=+s.mycapo; if(s.notes) d.notes=s.notes; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.yt) d.yt=s.yt; if(s.sp) d.sp=s.sp; if(s.mycapo!=null&&s.mycapo!=='') d.mycapo=+s.mycapo; if(s.notes) d.notes=s.notes; if(s.mine) d.mine=s.mine; if(s.useMine) d.useMine=true; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -726,7 +743,7 @@ function openEditor(id){
   editingId=id||null;
   $('#edHeading').textContent=id?'Edit song':'New song';
   $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edYt').value=s.yt||''; $('#edSp').value=s.sp||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edMyCapo').value=(s.mycapo!=null&&s.mycapo!=='')?s.mycapo:''; $('#edNotes').value=s.notes||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
-  $('#edDup').hidden=!id;
+  $('#edDup').hidden=!id; $('#edResetMine').hidden=!(id&&s.mine); $('#edResetMine').onclick=()=>{ if($('#edResetMine').textContent!=='Really discard?'){ $('#edResetMine').textContent='Really discard?'; return; } delete s.mine; s.useMine=false; writeSong(s); $('#edResetMine').hidden=true; toast('Back to the original'); };
   $('#edDelete').hidden=!id||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
   show('editor'); window.scrollTo(0,0);
 }
@@ -946,7 +963,9 @@ function openStage(i){
 let lastRendered='';
 function renderSheet(keepPos){
   const s=cur(); if(!s) return; const n=effTr(s);
-  const html=renderBody(s.body||'',n);
+  const shownBody=(s.useMine&&s.mine)?s.mine:(s.body||'');
+  const html=renderBody(shownBody,n);
+  $('#btnMine').hidden=!s.mine; $('#btnMine').textContent=s.useMine?'Mine ✓':'Original'; $('#btnMine').classList.toggle('on',!!s.useMine);
   pre.dir=HEBREW.test(s.body||'')?'rtl':'ltr';
   const notesEl=$('#sheetNotes'); notesEl.textContent=s.notes||''; notesEl.hidden=!s.notes;
   chordCard.hidden=true;
@@ -1174,8 +1193,10 @@ function showChordCard(name,anchor){
   chordCard.style.left=x+'px'; chordCard.style.top=y+'px';
   chordCard.querySelector('.x').onclick=()=>{ chordCard.hidden=true; };
 }
-pre.addEventListener('click',e=>{ if(practiceTap(e.target)){ e.stopPropagation(); return; } const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
-const swallow=e=>{ if(e.target.closest('.c')||(practice&&(practice===4?e.target.closest('.sec'):e.target.closest('.c,.ly,.w,.cell')))) e.stopPropagation(); };
+pre.addEventListener('click',e=>{
+  if(arrange){ const c=e.target.closest('.c'); if(c){ e.stopPropagation(); showChordOptions(c); return; } const w=e.target.closest('.ly,.w'); if(w){ e.stopPropagation(); showAdlibOptions(w); return; } }
+  if(practiceTap(e.target)){ e.stopPropagation(); return; } const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
+const swallow=e=>{ if(e.target.closest('.c')||(arrange&&e.target.closest('.ly,.w'))||(practice&&(practice===4?e.target.closest('.sec'):e.target.closest('.c,.ly,.w,.cell')))) e.stopPropagation(); };
 pre.addEventListener('pointerup',swallow);
 pre.addEventListener('touchend',swallow,{passive:true});
 document.addEventListener('click',e=>{ if(!chordCard.hidden&&!chordCard.contains(e.target)&&!e.target.closest('.c')) chordCard.hidden=true; });
@@ -1186,6 +1207,128 @@ function renderStrip(){
 }
 $('#btnChords').onclick=function(){ const on=chordStrip.hidden; if(on){ renderStrip(); chordStrip.hidden=false; } else chordStrip.hidden=true; this.classList.toggle('on',on); };
 chordStrip.addEventListener('click',e=>{ const o=e.target.closest('.one'); if(o) showChordCard(o.dataset.chord,o); });
+/* ---------- arrange mode: make my own version ---------- */
+let arrange=false, arrScope='here';
+const optCard=$('#optCard');
+function hideOpt(){ optCard.hidden=true; }
+function placeCard(card,anchor){ card.hidden=false; const r=anchor.getBoundingClientRect(), cw=card.offsetWidth, ch=card.offsetHeight; let x=Math.min(Math.max(8,r.left),innerWidth-cw-8), y=r.bottom+8; if(y+ch>innerHeight-8) y=Math.max(8,r.top-ch-8); card.style.left=x+'px'; card.style.top=y+'px'; }
+function myBody(s){ if(!s.mine){ s.mine=s.body||''; } return s.mine; }
+function keyInfo(s){ const ek=effectiveKey(s); const n=effTr(s); let k=ek.key||detectKey(s.body||'')||'C'; const m=k.match(/^([A-G](?:#|b)?)(m?)/); if(!m) return {root:0,minor:false}; let root=IDX[m[1]]; const minor=!!m[2]; root=((root+n)%12+12)%12; return {root,minor,flats:prefersFlats(s.body||'')}; }
+const NAME=(i,flats)=>(flats?FLATS:SHARPS)[((i%12)+12)%12];
+// substitution options for a displayed chord, in the displayed key
+function chordOptions(name,s){
+  const p=parseChord(name); if(!p) return [];
+  const k=keyInfo(s); const major=k.minor?(k.root+3)%12:k.root;       // think in the relative major
+  const r=IDX[p.root]; const deg=((r-major)%12+12)%12; const minor=/^m(?!aj)/.test(p.q);
+  const N=i=>NAME(i,k.flats); const out=[];
+  const add=(chord,why)=>{ if(chord!==name&&!out.some(o=>o.chord===chord)) out.push({chord,why}); };
+  if(!minor&&(p.q===''||p.q==='maj7'||p.q==='add9')){
+    add(p.root+'add9','open, shimmering color; works almost anywhere');
+    add(p.root+'maj7','softer, jazzier; great on the I and IV');
+    add(p.root+'sus2','airy; try sus2 → '+p.root+' across the bar');
+    add(p.root+'sus4 '+p.root,'suspend then resolve: a built-in little hook');
+  }
+  if(minor&&(p.q==='m'||p.q==='m7')){
+    add(p.root+'m7','rounder minor; sits better under a melody');
+    add(p.root+'m9','lush; use once, not every time');
+    add(p.root+'madd9','bittersweet; nice on the vi in a quiet verse');
+  }
+  if(p.q==='7'||deg===7){ add(p.root+'7sus4 '+p.root+'7','delay the dominant, then land'); add(p.root+'9','warmer dominant'); }
+  // relative swaps
+  if(deg===0&&!minor) add(N(r+9)+'m','relative minor: same notes, darker; swap in a second verse');
+  if(deg===9&&minor) add(N(r+3),'relative major: lifts the line');
+  if(deg===5&&!minor){ add(N(r+9)+'m7','the ii instead of IV: smoother pre-chorus'); add(p.root+'m','borrowed minor iv: the classic heart-tug, best right before the I'); }
+  if(deg===7&&!minor){ add(N(major+5)+'/'+N(r),'IV over the V bass: softer than a dominant'); add(p.root+'sus4','suspended V: holds the tension a beat longer'); }
+  if(deg===4&&minor) add(N(major)+'/'+N(r),'I with the 3rd in the bass instead of iii: more open');
+  if(deg===2&&minor) add(N(major+5),'the IV instead of ii: bigger, more anthemic');
+  // bass movement and approach chords
+  if(!minor) add(p.root+'/'+N(r+4),'3rd in the bass: a walking line under the same chord');
+  add(p.root+'/'+N(r+7),'5th in the bass: steadier, rootless feel');
+  add(N(r+7)+'7 '+name,'approach from its own V7 for two beats: pulls the ear in');
+  return out.slice(0,8);
+}
+// map a tapped chord element back to the nth chord token in the text, and apply a replacement there (or everywhere)
+function chordIndexOf(el){ const all=[...pre.querySelectorAll('.c')]; return all.indexOf(el); }
+function replaceChordInBody(body,nth,fromName,toName,everywhere){
+  const lines=body.replace(/\r/g,'').split('\n'); let i=0; let done=false;
+  for(let L=0;L<lines.length;L++){
+    if(!isChordLine(lines[L])||SECTION.test(lines[L])) continue;
+    lines[L]=lines[L].replace(/\S+/g,t=>{ if(!CHORD.test(t)) return t; const idx=i++; if(everywhere?(t===fromName):(idx===nth)){ done=true; return toName; } return t; });
+  }
+  return {text:lines.join('\n'),done};
+}
+function applyChord(el,toDisplayed){
+  const s=cur(); const n=effTr(s); const flats=prefersFlats(s.body||'');
+  const fromDisp=el.textContent.trim();
+  const back=t=>t.split(' ').map(x=>trTok(x,-n,flats)).join(' ');  // store in the sheet's own key
+  const fromStored=back(fromDisp), toStored=back(toDisplayed);
+  const body=myBody(s); const nth=chordIndexOf(el);
+  const r=replaceChordInBody(body,nth,fromStored,toStored,arrScope==='all');
+  if(!r.done){ toast('Could not find that chord in the text'); return; }
+  s.mine=r.text; s.useMine=true; renderSheet(true); writeSong(s); hideOpt(); toast('Your version: '+fromDisp+' → '+toDisplayed+(arrScope==='all'?' (everywhere)':''));
+}
+function showChordOptions(el){
+  const s=cur(); const name=el.textContent.trim(); const opts=chordOptions(name,s);
+  optCard.innerHTML='<button class="x" aria-label="Close">✕</button><h4>'+esc(name)+' → try</h4>'+opts.map((o,i)=>'<button class="opt" data-i="'+i+'"><b>'+esc(o.chord)+'</b><small>'+esc(o.why)+'</small></button>').join('')+
+    '<div class="scope">Apply: <button data-scope="here" class="'+(arrScope==='here'?'on':'')+'">this one</button><button data-scope="all" class="'+(arrScope==='all'?'on':'')+'">every '+esc(name)+'</button></div>';
+  optCard.querySelector('.x').onclick=hideOpt;
+  optCard.querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{ arrScope=b.dataset.scope; optCard.querySelectorAll('[data-scope]').forEach(x=>x.classList.toggle('on',x.dataset.scope===arrScope)); });
+  optCard.querySelectorAll('.opt').forEach(b=>b.onclick=()=>applyChord(el,opts[+b.dataset.i].chord));
+  placeCard(optCard,el);
+}
+// ad-libs: append to the lyric line that was tapped
+const ADLIBS=[['yeah','(yeah)'],['oh','(oh)'],['mmm','(mmm)'],['hey','(hey)'],['come on','(come on)'],['stop','(stop!)'],['hold','(hold)'],['repeat line','(x2)'],['quiet','(soft)'],['big','(big)']];
+function lyricLineIndexOf(el){ const line=el.closest('.pair,.l'); const all=[...pre.querySelectorAll('.pair,.l')]; return all.indexOf(line); }
+function appendToLyricLine(body,nth,text){
+  const lines=body.replace(/\r/g,'').split('\n'); let i=0;
+  for(let L=0;L<lines.length;L++){
+    const line=lines[L]; if(!line.trim()||SECTION.test(line)) continue;
+    if(isChordLine(line)){ const next=lines[L+1]; if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ if(i===nth){ lines[L+1]=next.replace(/\s+$/,'')+'  '+text; return lines.join('\n'); } i++; L++; } continue; }
+    if(i===nth){ lines[L]=line.replace(/\s+$/,'')+'  '+text; return lines.join('\n'); } i++;
+  }
+  return null;
+}
+function showAdlibOptions(el){
+  const s=cur(); const nth=lyricLineIndexOf(el); if(nth<0) return;
+  optCard.innerHTML='<button class="x" aria-label="Close">✕</button><h4>Add at the end of this line</h4><div style="display:flex;flex-wrap:wrap;gap:6px">'+ADLIBS.map((a,i)=>'<button data-i="'+i+'" style="min-height:40px">'+esc(a[0])+'</button>').join('')+'</div>';
+  optCard.querySelector('.x').onclick=hideOpt;
+  optCard.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{ const t=ADLIBS[+b.dataset.i][1]; const out=appendToLyricLine(myBody(s),nth,t); if(out==null){ toast('Could not find that line'); return; } s.mine=out; s.useMine=true; renderSheet(true); writeSong(s); hideOpt(); toast('Added '+t); });
+  placeCard(optCard,el);
+}
+// arrangement ideas from the song's own structure
+function ideasFor(s){
+  const k=keyInfo(s); const major=k.minor?(k.root+3)%12:k.root; const N=i=>NAME(i,k.flats);
+  const I=N(major), IV=N(major+5), V=N(major+7), vi=N(major+9)+'m', ii=N(major+2)+'m';
+  const body=(s.useMine&&s.mine)?s.mine:(s.body||''); const secs=[]; body.split('\n').forEach(l=>{ if(SECTION.test(l)) secs.push(l.trim().replace(/[\[\]:]/g,'')); });
+  const firstChords=chordRoots(body).slice(0,4).join(' ');
+  const hasBridge=secs.some(x=>/bridge|גשר/i.test(x)), choruses=secs.filter(x=>/chorus|פזמון/i.test(x)).length;
+  const L=[];
+  L.push('INTRO — don\'t start with the strum. Pick the first two chords ('+(firstChords||I+' '+V)+') fingerpicked, 4 bars, hum the melody over them, then one hard downstroke into verse 1.');
+  L.push('VERSE 1 quiet: palm-muted or fingerpicked, sing low and close. Save your full voice.');
+  if(choruses) L.push('CHORUS 1 opens up but keep one thing back (no bass notes, or no high strings) so chorus 2 can be bigger.');
+  L.push('VERSE 2: change the texture, not the chords — add '+I+'add9 / '+IV+'maj7 colors (Arrange: tap a chord), or play the verse on the top 3 strings only.');
+  if(hasBridge) L.push('BRIDGE: this is where you leave the record. Try half-time strumming, or swap '+I+' → '+vi+' once, or drop out entirely and sing it almost a cappella with single bass notes.');
+  else L.push('No bridge: make one. After chorus 2, vamp '+vi+' → '+IV+' for 8 bars with an "oh-oh" melody; that\'s your sing-along moment.');
+  L.push('THE STOP: before the last chorus, hit '+V+' once and stop dead for a full beat of silence. Look up. Then come in with everything.');
+  L.push('LAST CHORUS: lift the key +1 or +2 (Key + on stage) or double the chorus with the second half sung an octave down and the crowd carrying the melody.');
+  L.push('AD-LIBS land at line ends, not inside lines: end of verse lines 2 and 4 ("yeah", "oh"), and a "come on" or clap-start right before a chorus. Add them with Arrange: tap a line.');
+  L.push('ENDING: tag the last line twice, slow the second one down, finish on '+I+'add9 let ring. Or end cold on the stop, no final chord — braver.');
+  L.push('BUSKING EDIT: cut verse 3 if there is one. Three minutes keeps passers-by; five loses them.');
+  return L;
+}
+function showIdeas(){
+  const s=cur(); const L=ideasFor(s);
+  optCard.innerHTML='<button class="x" aria-label="Close">✕</button><h4>Make "'+esc(s.title||'this')+'" yours</h4><pre>'+esc(L.map(x=>'• '+x).join('\n\n'))+'</pre><div class="scope"><button id="ideasToNotes">Add to this song\'s notes</button></div>';
+  optCard.querySelector('.x').onclick=hideOpt;
+  $('#ideasToNotes').onclick=()=>{ s.notes=((s.notes||'').trim()+'\n\nARRANGEMENT IDEAS\n'+L.map(x=>'• '+x).join('\n')).trim(); renderSheet(true); writeSong(s); hideOpt(); toast('Added to notes'); };
+  optCard.hidden=false; optCard.style.left='50%'; optCard.style.top='8%'; optCard.style.transform='translateX(-50%)';
+  setTimeout(()=>{ optCard.style.transform=''; const w=optCard.offsetWidth; optCard.style.left=Math.max(8,(innerWidth-w)/2)+'px'; },0);
+}
+$('#btnArrange').onclick=function(){ arrange=!arrange; this.classList.toggle('on',arrange); pre.classList.toggle('arr',arrange); $('#btnIdeas').hidden=!arrange; hideOpt(); toast(arrange?'Arrange: tap a chord for alternatives, tap a lyric line for an ad-lib, Ideas for a plan':'Arrange off'); };
+$('#btnIdeas').onclick=showIdeas;
+$('#btnMine').onclick=()=>{ const s=cur(); if(!s.mine) return; s.useMine=!s.useMine; renderSheet(true); writeSong(s); toast(s.useMine?'Showing your version':'Showing the original'); };
+document.addEventListener('click',e=>{ if(!optCard.hidden&&!optCard.contains(e.target)&&!e.target.closest('.c,.ly,.w,#btnIdeas')) hideOpt(); });
+
 /* practice mode: 0 full · 1 no chords · 2 no lyrics · 3 first words only · 4 cue card (first line of each section) */
 const PRACTICE=['Practice','No chords','No lyrics','First words','Cue card'];
 let practice=0, prAmt=(()=>{ try{ return Math.min(5,Math.max(1,+localStorage.getItem('stagesheets.pramt')||2)); }catch(e){ return 2; } })();
