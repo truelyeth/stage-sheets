@@ -89,6 +89,8 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick .res .t small{display:block;color:var(--muted);font-weight:400}
 .bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
 #btnCount.on{border-color:var(--chord);color:var(--chord)}
+.bar-handle{position:fixed;right:max(10px,env(safe-area-inset-right,0px));bottom:max(10px,env(safe-area-inset-bottom,0px));width:42px;height:42px;min-height:0;padding:0;border-radius:50%;background:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--line);color:var(--muted);font-size:18px;z-index:20;opacity:.85;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.bar-handle[hidden]{display:none}
 .barwrap{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;max-height:55%}
 .barwrap:has(.bar.hide) .bar-x{display:none}
 .bar-x{position:absolute;top:-18px;right:max(12px,env(safe-area-inset-right,0px));min-height:36px;height:36px;min-width:36px;padding:0;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:16px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.35)}
@@ -129,18 +131,17 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .sheet .sec{display:block}
 .sheet .l,.sheet .cl{display:block}
 .sheet pre.p1 .c,.sheet pre.p3 .c{color:transparent!important;background:color-mix(in srgb,var(--chord) 22%,transparent);border-radius:4px}
-.sheet pre.p2 .ly,.sheet pre.p2 .w,.sheet pre.p3 .pair .cell:not(:first-child) .ly,.sheet pre.p3 .l .w:not(:first-child){color:transparent;background:color-mix(in srgb,var(--fg) 12%,transparent);border-radius:4px}
+.sheet pre.p2 .ly,.sheet pre.p2 .w{color:transparent;background:color-mix(in srgb,var(--fg) 12%,transparent);border-radius:4px}
 .sheet pre.p4 .sec{white-space:normal}
-.sheet pre.p4 .sec>*:not(.s):not(.first){display:none}
-.sheet pre.p4 .first{white-space:pre-wrap;margin-bottom:.6em}
-.sheet pre.p4 .first .cell:nth-child(n+4),.sheet pre.p4 .first.l .w:nth-child(n+4){display:none}
-.sheet pre.p4 .first::after{content:' …';color:var(--muted);display:inline-block;vertical-align:bottom;line-height:1.42}
+.sheet pre.p4 .cue{white-space:pre-wrap;margin-bottom:.4em}
+.sheet pre.p4 .cue::after{content:' …';color:var(--muted);display:inline-block;vertical-align:bottom;line-height:1.42}
 .sheet pre .peek .c{color:var(--chord)!important;background:none!important}
 .sheet pre .peek .ly,.sheet pre .peek .w{color:inherit!important;background:none!important}
 .sheet pre.p4 .sec.peek>*{display:revert!important}
 .sheet pre.p4 .sec.peek{white-space:pre-wrap}
-.sheet pre.p4 .sec.peek .first .cell,.sheet pre.p4 .sec.peek .first .w{display:revert!important}
-.sheet pre.p4 .sec.peek .first::after{content:none}
+.sheet pre.p4 .sec.peek .cell,.sheet pre.p4 .sec.peek .w{display:revert!important}
+.sheet pre.p4 .sec.peek .cue::after{content:none}
+#prLess,#prMore{min-width:36px}
 @media (prefers-reduced-motion:reduce){ .metro{transition:none} }
 /* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
 .zone{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 6px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
@@ -266,6 +267,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div id="sheet" class="sheet"><div class="leadin"></div><div id="sheetNotes" class="notes" hidden></div><pre id="sheetBody"></pre><div class="tail"></div></div>
   <div id="count" class="count" hidden>3</div>
   <div id="chordCard" class="chordcard" hidden></div>
+  <button id="barHandle" class="bar-handle" hidden aria-label="Show the controls">☰</button>
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
   <div class="barwrap">
@@ -292,7 +294,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
       <button id="btnChords" aria-label="Show the chord shapes used in this song">Chords</button>
-      <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button>
+      <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button><button id="prLess" class="icon" hidden aria-label="Show less">−</button><button id="prMore" class="icon" hidden aria-label="Show more">+</button>
       <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
@@ -604,13 +606,13 @@ function renderPair(cl,ll,n,flats){
 function renderBody(body,n){
   body=decodeEntities(body);
   const flats=prefersFlats(body);
-  const secs=[]; let cur=[]; let first=true;   // first = next content line is the first of its section (cue-card line)
+  const secs=[]; let cur=[]; let li=0;   // li = index of the content line within its section (cue card shows the first few)
   const flush=()=>{ if(cur.length) secs.push('<span class="sec">'+cur.join('\n')+'</span>'); cur=[]; };
-  const mark=h=>{ if(first){ first=false; return h.replace(/^<span class="/,'<span class="first '); } return h; };
+  const mark=h=>{ li++; return h.replace(/^<span class="/,'<span class="li'+Math.min(li,9)+(li===1?' first':'')+' '); };
   const lines=body.replace(/\r/g,'').split('\n');
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    if(SECTION.test(line)){ flush(); first=true; cur.push('<span class="s">'+esc(line.trim())+'</span>'); }
+    if(SECTION.test(line)){ flush(); li=0; cur.push('<span class="s">'+esc(line.trim())+'</span>'); }
     else if(isChordLine(line)){
       const next=lines[i+1];
       if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats))); i++; }
@@ -627,6 +629,7 @@ function renderBody(body,n){
 const screens={library:$('#library'),stage:$('#stage'),editor:$('#editor'),io:$('#io'),settings:$('#settings'),picker:$('#picker'),finder:$('#finder')};
 function show(name){
   for(const k in screens) screens[k].hidden=(k!==name);
+  if(typeof syncHandle==='function') syncHandle();
   document.body.style.overflow=(name==='stage')?'hidden':'';
   if(name!=='stage'){ stopScroll(); if(typeof mtStop==='function') mtStop(); releaseWake(); }
 }
@@ -950,7 +953,7 @@ function renderSheet(keepPos){
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
   if(!chordStrip.hidden) renderStrip();
-  if(practice) pre.classList.add('p'+practice);
+  if(practice){ pre.classList.add('p'+practice); updatePracticeStyle(); }
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
   const ek=effectiveKey(s); let k=ek.key, base=k;
   const parts=[];
@@ -1172,7 +1175,7 @@ function showChordCard(name,anchor){
   chordCard.querySelector('.x').onclick=()=>{ chordCard.hidden=true; };
 }
 pre.addEventListener('click',e=>{ if(practiceTap(e.target)){ e.stopPropagation(); return; } const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
-const swallow=e=>{ if(e.target.closest('.c')||(practice&&e.target.closest('.sec'))) e.stopPropagation(); };
+const swallow=e=>{ if(e.target.closest('.c')||(practice&&(practice===4?e.target.closest('.sec'):e.target.closest('.c,.ly,.w,.cell')))) e.stopPropagation(); };
 pre.addEventListener('pointerup',swallow);
 pre.addEventListener('touchend',swallow,{passive:true});
 document.addEventListener('click',e=>{ if(!chordCard.hidden&&!chordCard.contains(e.target)&&!e.target.closest('.c')) chordCard.hidden=true; });
@@ -1185,14 +1188,34 @@ $('#btnChords').onclick=function(){ const on=chordStrip.hidden; if(on){ renderSt
 chordStrip.addEventListener('click',e=>{ const o=e.target.closest('.one'); if(o) showChordCard(o.dataset.chord,o); });
 /* practice mode: 0 full · 1 no chords · 2 no lyrics · 3 first words only · 4 cue card (first line of each section) */
 const PRACTICE=['Practice','No chords','No lyrics','First words','Cue card'];
-let practice=0;
+let practice=0, prAmt=(()=>{ try{ return Math.min(5,Math.max(1,+localStorage.getItem('stagesheets.pramt')||2)); }catch(e){ return 2; } })();
+const prStyle=document.createElement('style'); document.head.appendChild(prStyle);
+// amount → first words: words per line; cue card: lines per section and words per line
+function prParams(){ return {fwWords:prAmt, cueLines:Math.ceil(prAmt/2), cueWords:prAmt+1}; }
+function updatePracticeStyle(){
+  const p=prParams();
+  const shown=Array.from({length:p.cueLines},(_,i)=>':not(.li'+(i+1)+')').join('');
+  const cueSel=Array.from({length:p.cueLines},(_,i)=>'.li'+(i+1)).join(',');
+  prStyle.textContent=`
+.sheet pre.p3 .pair .cell:nth-child(n+${p.fwWords+1}) .ly,.sheet pre.p3 .l .w:nth-child(n+${p.fwWords+1}){color:transparent;background:color-mix(in srgb,var(--fg) 12%,transparent);border-radius:4px}
+.sheet pre.p4 .sec>*:not(.s)${shown}{display:none}
+.sheet pre.p4 :is(${cueSel}) .cell:nth-child(n+${p.cueWords+1}),.sheet pre.p4 :is(${cueSel}).l .w:nth-child(n+${p.cueWords+1}){display:none}`;
+  pre.querySelectorAll('.cue').forEach(e=>e.classList.remove('cue'));
+  if(practice===4) pre.querySelectorAll(cueSel).forEach(e=>e.classList.add('cue'));
+}
+function prLabel(){ const p=prParams(); return practice===3?p.fwWords+' word'+(p.fwWords>1?'s':'')+' per line':practice===4?p.cueLines+' line'+(p.cueLines>1?'s':'')+', '+p.cueWords+' words':''; }
 function setPractice(l){
   practice=((l%5)+5)%5;
   pre.classList.remove('p1','p2','p3','p4'); if(practice) pre.classList.add('p'+practice);
   const b=$('#btnPractice'); b.textContent=PRACTICE[practice]; b.classList.toggle('on',practice>0);
-  if(practice) toast(PRACTICE[practice]+' — tap a hidden spot to peek'+(practice===4?'; tap a section name to see the whole section':''));
+  const adj=practice===3||practice===4; $('#prLess').hidden=!adj; $('#prMore').hidden=!adj;
+  updatePracticeStyle();
+  if(practice) toast(PRACTICE[practice]+(adj?' · '+prLabel()+' (−/+ to show less or more)':'')+' — tap a hidden spot to peek'+(practice===4?'; tap a section name for the whole section':''));
 }
 $('#btnPractice').onclick=()=>setPractice(practice+1);
+function setAmt(v){ prAmt=Math.min(5,Math.max(1,v)); try{ localStorage.setItem('stagesheets.pramt',prAmt); }catch(e){} updatePracticeStyle(); toast(prLabel()); }
+$('#prLess').onclick=()=>setAmt(prAmt-1);
+$('#prMore').onclick=()=>setAmt(prAmt+1);
 function peek(el,ms){ if(!el) return; el.classList.add('peek'); clearTimeout(el._pk); el._pk=setTimeout(()=>el.classList.remove('peek'),ms); }
 function practiceTap(target){
   if(!practice) return false;
@@ -1208,6 +1231,10 @@ $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyM
 applyMode();
 btnPlay.onclick=toggleScroll;
 $('#btnTop').onclick=()=>{ stopScroll(); sheet.scrollTop=0; pos=0; };
+const barHandle=$('#barHandle');
+function syncHandle(){ barHandle.hidden=screens.stage.hidden||!bar.classList.contains('hide'); }
+new MutationObserver(syncHandle).observe(bar,{attributes:true,attributeFilter:['class']});
+barHandle.onclick=e=>{ e.stopPropagation(); bar.classList.remove('hide'); };
 let barHint=false;
 $('#btnHideBar').onclick=()=>{ bar.classList.add('hide'); if(!barHint){ toast('Tap the sheet to bring the controls back'); barHint=true; } };
 $('#btnBack').onclick=()=>{ show('library'); renderLibrary(); };
@@ -1227,7 +1254,7 @@ function down(x,y){ px=x; py=y; pt=performance.now(); }
 function up(x,y){
   const dx=x-px, dy=y-py, dt=performance.now()-pt;
   if(Math.abs(dx)>80&&Math.abs(dy)<60&&dt<600){ openStage(curIndex()+(dx<0?1:-1)); return; }
-  if(Math.hypot(dx,dy)<12&&dt<400) toggleScroll();
+  if(Math.hypot(dx,dy)<14&&dt<700) toggleScroll();
 }
 if('ontouchstart' in window){
   sheet.addEventListener('touchstart',e=>down(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
