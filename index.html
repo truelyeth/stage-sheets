@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e1013">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Stage Sheets</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -155,8 +159,10 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .bar .title .k{font-family:var(--mono);color:var(--chord);font-size:13px;font-variant-numeric:tabular-nums}
 .grp{display:flex;align-items:center;gap:6px}
 .grp .val{font-family:var(--mono);font-variant-numeric:tabular-nums;min-width:3ch;text-align:center;font-size:15px}
-.grp.speed{flex:1 1 200px;min-width:180px}
-.grp.speed input[type=range]{flex:1 1 90px;min-width:90px;padding:0;accent-color:var(--accent);height:46px;background:transparent;border:0}
+.grp.speed{flex:1 1 200px;min-width:0;flex-wrap:nowrap}
+.grp.speed .val{flex:none;min-width:3ch;text-align:right}
+.grp .val{flex:none}
+.grp.speed input[type=range]{flex:1 1 60px;min-width:50px;padding:0;accent-color:var(--accent);height:46px;background:transparent;border:0}
 #btnPlay{min-width:130px;font-size:17px}
 #btnPlay.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
 
@@ -226,7 +232,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div class="bar">
     <div class="zone z-play" aria-label="Scrolling">
       <button id="btnPlay" class="primary">▶ Scroll</button>
-      <div class="grp speed"><span class="lbl">Speed</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button><span id="speedVal" class="val">30</span></div>
+      <div class="grp speed"><span class="lbl">Speed</span><span id="speedVal" class="val">30</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button></div>
       <button id="btnTop" class="icon" aria-label="Back to top">⤒</button>
       <button id="btnCount" aria-label="Count-in for this song">3·2·1</button>
       <div class="grp tempo"><span class="lbl">Tempo</span><button id="mtToggle" class="icon" aria-label="Show the beat">♩</button><button id="bpmDown" class="icon" aria-label="Slower tempo">−</button><span id="bpmVal" class="val">—</span><button id="bpmUp" class="icon" aria-label="Faster tempo">+</button><button id="mtTap" aria-label="Tap the tempo">Tap</button><button id="mtBeats" class="icon" aria-label="Beats per bar">4</button></div>
@@ -881,7 +887,7 @@ function openStage(i){
   renderSheet(false);
   speedIn.value=s.speed; speedVal.textContent=s.speed;
   show('stage');
-  applyFont(); (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(applyFont);
+  fitOverride=false; applyFont(); (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(applyFont);
   sheet.scrollTop=0; pos=0;
   requestWake();
 }
@@ -908,16 +914,17 @@ function renderSheet(keepPos){
   $('#stKey').textContent=parts.join('  ·  ');
   $('#trVal').textContent=(n>0?'+':'')+n;
 }
+let fitOverride=false;   // set when you size the text yourself; cleared when a song opens or Fit is pressed
 function applyFont(){
   let f=state.font;
-  if(pref('autofit',true)&&cur()){ const fit=fitSize(); if(fit&&fit<f) f=Math.max(14,Math.floor(fit)); }
+  if(!fitOverride&&pref('autofit',true)&&cur()){ const fit=fitSize(); if(fit&&fit<f) f=Math.max(14,Math.floor(fit)); }
   pre.style.fontSize=f+'px';
 }
 window.addEventListener('resize',()=>{ if(!screens.stage.hidden) applyFont(); });
 
-function setFont(f){ state.font=Math.max(14,Math.min(60,Math.round(f))); applyFont(); saveLocal(); }
-holdable($('#fsUp'),()=>setFont(state.font+2));
-holdable($('#fsDown'),()=>setFont(state.font-2));
+function setFont(f,fromFit){ if(!fromFit){ if(!fitOverride&&pref('autofit',true)){ const shown=parseFloat(pre.style.fontSize)||state.font; if(shown<state.font) state.font=shown; } fitOverride=true; } state.font=Math.max(14,Math.min(60,Math.round(f))); applyFont(); saveLocal(); }
+holdable($('#fsUp'),()=>setFont((fitOverride?state.font:Math.min(state.font,parseFloat(pre.style.fontSize)||state.font))+2));
+holdable($('#fsDown'),()=>setFont((fitOverride?state.font:Math.min(state.font,parseFloat(pre.style.fontSize)||state.font))-2));
 function fitSize(){
   const c=document.createElement('canvas').getContext('2d');
   c.font='400 100px '+getComputedStyle(pre).fontFamily;
@@ -926,7 +933,7 @@ function fitSize(){
   const avail=sheet.clientWidth-parseFloat(getComputedStyle(sheet).paddingLeft)-parseFloat(getComputedStyle(sheet).paddingRight)-8;
   return 100*avail/maxW;
 }
-$('#fsFit').onclick=()=>{ const f=fitSize(); if(f){ setFont(f); toast('Fit to '+state.font+'px'); } };
+$('#fsFit').onclick=()=>{ fitOverride=false; const f=fitSize(); if(f){ setFont(f,true); toast('Fit to '+state.font+'px'); } };
 function fitNote(){ const f=parseFloat(pre.style.fontSize); if(pref('autofit',true)&&f&&f<state.font) toast('Shrunk to '+f+'px so lines fit; A− A+ still set the ceiling'); }
 
 // transpose is remembered per song, and separately per singer when one is chosen
@@ -1035,6 +1042,7 @@ $('#btnHideBar').onclick=()=>{ bar.classList.add('hide'); if(!barHint){ toast('T
 $('#btnBack').onclick=()=>{ show('library'); renderLibrary(); };
 $('#btnPrev').onclick=()=>openStage(curIndex()-1);
 $('#btnNext').onclick=()=>openStage(curIndex()+1);
+if(window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches) $('#btnFull').hidden=true;
 $('#btnFull').onclick=()=>{
   const d=document;
   if(d.fullscreenElement){ d.exitFullscreen&&d.exitFullscreen().catch(()=>{}); return; }
