@@ -124,6 +124,23 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .diag .mute{font:600 11px var(--sans);fill:var(--muted)}
 .diag .fret{font:600 12px var(--mono);fill:var(--muted)}
 #btnChords.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
+/* practice: hide by role, keep the layout; .peek on a line or section shows it again for a moment */
+#btnPractice.on{background:var(--section);border-color:var(--section);color:#07201b}
+.sheet .sec{display:block}
+.sheet .l,.sheet .cl{display:block}
+.sheet pre.p1 .c,.sheet pre.p3 .c{color:transparent!important;background:color-mix(in srgb,var(--chord) 22%,transparent);border-radius:4px}
+.sheet pre.p2 .ly,.sheet pre.p2 .w,.sheet pre.p3 .pair .cell:not(:first-child) .ly,.sheet pre.p3 .l .w:not(:first-child){color:transparent;background:color-mix(in srgb,var(--fg) 12%,transparent);border-radius:4px}
+.sheet pre.p4 .sec{white-space:normal}
+.sheet pre.p4 .sec>*:not(.s):not(.first){display:none}
+.sheet pre.p4 .first{white-space:pre-wrap;margin-bottom:.6em}
+.sheet pre.p4 .first .cell:nth-child(n+4),.sheet pre.p4 .first.l .w:nth-child(n+4){display:none}
+.sheet pre.p4 .first::after{content:' …';color:var(--muted);display:inline-block;vertical-align:bottom;line-height:1.42}
+.sheet pre .peek .c{color:var(--chord)!important;background:none!important}
+.sheet pre .peek .ly,.sheet pre .peek .w{color:inherit!important;background:none!important}
+.sheet pre.p4 .sec.peek>*{display:revert!important}
+.sheet pre.p4 .sec.peek{white-space:pre-wrap}
+.sheet pre.p4 .sec.peek .first .cell,.sheet pre.p4 .sec.peek .first .w{display:revert!important}
+.sheet pre.p4 .sec.peek .first::after{content:none}
 @media (prefers-reduced-motion:reduce){ .metro{transition:none} }
 /* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
 .zone{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 6px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
@@ -275,6 +292,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
       <button id="btnChords" aria-label="Show the chord shapes used in this song">Chords</button>
+      <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button>
       <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
@@ -586,20 +604,23 @@ function renderPair(cl,ll,n,flats){
 function renderBody(body,n){
   body=decodeEntities(body);
   const flats=prefersFlats(body);
-  const out=[];
+  const secs=[]; let cur=[]; let first=true;   // first = next content line is the first of its section (cue-card line)
+  const flush=()=>{ if(cur.length) secs.push('<span class="sec">'+cur.join('\n')+'</span>'); cur=[]; };
+  const mark=h=>{ if(first){ first=false; return h.replace(/^<span class="/,'<span class="first '); } return h; };
   const lines=body.replace(/\r/g,'').split('\n');
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    if(SECTION.test(line)) out.push('<span class="s">'+esc(line.trim())+'</span>');
+    if(SECTION.test(line)){ flush(); first=true; cur.push('<span class="s">'+esc(line.trim())+'</span>'); }
     else if(isChordLine(line)){
       const next=lines[i+1];
-      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ out.push(renderPair(line,next,n,flats)); i++; }
-      else out.push(renderChordLine(line,n,flats));
+      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats))); i++; }
+      else cur.push(mark('<span class="cl">'+renderChordLine(line,n,flats)+'</span>'));
     }
-    else out.push(esc(line));
+    else if(line.trim()) cur.push(mark('<span class="l">'+esc(line).replace(/\S+/g,w=>'<span class="w">'+w+'</span>')+'</span>'));
+    else cur.push('');
   }
-  out.push('<span class="end">— end —</span>');
-  return out.join('\n');
+  flush();
+  return secs.join('\n')+'\n<span class="end">— end —</span>';
 }
 
 /* ---------- screens ---------- */
@@ -929,6 +950,7 @@ function renderSheet(keepPos){
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
   if(!chordStrip.hidden) renderStrip();
+  if(practice) pre.classList.add('p'+practice);
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
   const ek=effectiveKey(s); let k=ek.key, base=k;
   const parts=[];
@@ -1149,9 +1171,10 @@ function showChordCard(name,anchor){
   chordCard.style.left=x+'px'; chordCard.style.top=y+'px';
   chordCard.querySelector('.x').onclick=()=>{ chordCard.hidden=true; };
 }
-pre.addEventListener('click',e=>{ const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
-pre.addEventListener('pointerup',e=>{ if(e.target.closest('.c')) e.stopPropagation(); });
-pre.addEventListener('touchend',e=>{ if(e.target.closest('.c')) e.stopPropagation(); },{passive:true});
+pre.addEventListener('click',e=>{ if(practiceTap(e.target)){ e.stopPropagation(); return; } const c=e.target.closest('.c'); if(!c) return; e.stopPropagation(); showChordCard(c.textContent.trim(),c); });
+const swallow=e=>{ if(e.target.closest('.c')||(practice&&e.target.closest('.sec'))) e.stopPropagation(); };
+pre.addEventListener('pointerup',swallow);
+pre.addEventListener('touchend',swallow,{passive:true});
 document.addEventListener('click',e=>{ if(!chordCard.hidden&&!chordCard.contains(e.target)&&!e.target.closest('.c')) chordCard.hidden=true; });
 function songChords(){ const seen=[]; pre.querySelectorAll('.c').forEach(c=>{ const t=c.textContent.trim(); if(!seen.includes(t)) seen.push(t); }); return seen; }
 function renderStrip(){
@@ -1160,6 +1183,26 @@ function renderStrip(){
 }
 $('#btnChords').onclick=function(){ const on=chordStrip.hidden; if(on){ renderStrip(); chordStrip.hidden=false; } else chordStrip.hidden=true; this.classList.toggle('on',on); };
 chordStrip.addEventListener('click',e=>{ const o=e.target.closest('.one'); if(o) showChordCard(o.dataset.chord,o); });
+/* practice mode: 0 full · 1 no chords · 2 no lyrics · 3 first words only · 4 cue card (first line of each section) */
+const PRACTICE=['Practice','No chords','No lyrics','First words','Cue card'];
+let practice=0;
+function setPractice(l){
+  practice=((l%5)+5)%5;
+  pre.classList.remove('p1','p2','p3','p4'); if(practice) pre.classList.add('p'+practice);
+  const b=$('#btnPractice'); b.textContent=PRACTICE[practice]; b.classList.toggle('on',practice>0);
+  if(practice) toast(PRACTICE[practice]+' — tap a hidden spot to peek'+(practice===4?'; tap a section name to see the whole section':''));
+}
+$('#btnPractice').onclick=()=>setPractice(practice+1);
+function peek(el,ms){ if(!el) return; el.classList.add('peek'); clearTimeout(el._pk); el._pk=setTimeout(()=>el.classList.remove('peek'),ms); }
+function practiceTap(target){
+  if(!practice) return false;
+  if(practice===4){ const sec=target.closest('.sec'); if(sec){ peek(sec,4000); return true; } return false; }
+  const line=target.closest('.pair,.l,.cl'); if(!line) return false;
+  const hiddenChord=target.closest('.c')&&(practice===1||practice===3);
+  const hiddenWord=(target.closest('.ly,.w'))&&(practice===2||practice===3);
+  if(hiddenChord||hiddenWord||target.closest('.cell')){ peek(line,1800); return true; }
+  return false;
+}
 function applyMode(){ document.documentElement.dataset.mode=pref('outdoor',false)?'outdoor':''; if(!pref('outdoor',false)) delete document.documentElement.dataset.mode; }
 $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyMode(); toast(pref('outdoor',false)?'Outdoor mode on':'Outdoor mode off'); };
 applyMode();
