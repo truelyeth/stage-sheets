@@ -57,6 +57,7 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .songs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .song{display:flex;align-items:stretch;gap:8px;min-width:0}
 .song .open{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;min-height:64px;padding:10px 16px}
+.song .open .num{align-self:flex-start;margin-top:2px}
 .song .num{color:var(--muted);font-family:var(--mono);font-size:14px;width:2ch;flex:none}
 .song .t{flex:1;min-width:0;font-size:19px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .song .meta{color:var(--muted);font-size:13px;white-space:nowrap;display:flex;gap:10px;font-variant-numeric:tabular-nums}
@@ -162,6 +163,13 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .io .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:500;font-size:14px;z-index:20;pointer-events:none}
 @media (max-width:640px){
+  .song{flex-wrap:wrap;gap:6px}
+  .song .open{flex:1 1 100%;min-height:56px;flex-wrap:wrap;row-gap:4px;padding:10px 14px}
+  .song .open .num{align-self:center;margin-top:0}
+  .song .open .t{flex:1 1 0;white-space:normal;font-size:18px;line-height:1.25}
+  .song .open .meta{flex:1 1 100%;justify-content:flex-start;margin-left:calc(2ch + 12px)}
+  .song .tools{flex-direction:row;gap:6px}
+  .song .tools button,.song .tools a{height:34px;min-width:46px}
   .ed-form{grid-template-columns:1fr 1fr 1fr}
   .ed-form .wide{grid-column:1 / -1}
   .grp.tempo{flex:1 1 100%}
@@ -302,6 +310,7 @@ Paste your chord sheet here"></textarea></label>
     <button id="setClear">Remove token</button>
   </div>
   <p id="setStatus" class="hint"></p>
+  <p id="setStorage" class="hint"></p>
   <h2 style="font-size:18px;margin:28px 0 10px">Import from Ultimate Guitar</h2>
   <p>One tap on any Ultimate Guitar or tab4u chord page sends the song here, in the right format, with title, artist, key and capo filled in. It runs in your own browser, so it works with your subscription and Pro tabs. Set it up once per device:</p>
   <p><a id="bmLink" href="#" draggable="true" style="display:inline-block;padding:10px 16px;border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:600;text-decoration:none">★ Send to Stage Sheets</a></p>
@@ -815,7 +824,16 @@ $('#fdForm').onsubmit=async e=>{
 
 /* ---------- sync settings ---------- */
 $('#setRepo').textContent=REPO;
-$('#btnSettings').onclick=()=>{ $('#setToken').value=token(); $('#setStatus').textContent=token()?'A token is saved on this device.':'No token on this device.'; show('settings'); window.scrollTo(0,0); };
+function storageReport(){
+  let ok=false; try{ localStorage.setItem('stagesheets.probe','1'); ok=localStorage.getItem('stagesheets.probe')==='1'; localStorage.removeItem('stagesheets.probe'); }catch(e){}
+  const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+  const where=standalone?'the Home Screen app':'a browser tab';
+  let msg='Storage on this device: '+(ok?'working':'BLOCKED (Private Browsing or “Block All Cookies” in Safari settings — the token cannot be kept)')+'. You are in '+where+'.';
+  if(!standalone) msg+=' A Home Screen icon of this site keeps its own separate storage: paste the token there too if you use it.';
+  else msg+=' The Safari tab version keeps separate storage: this token only applies here.';
+  $('#setStorage').textContent=msg;
+}
+$('#btnSettings').onclick=()=>{ $('#setToken').value=token(); $('#setStatus').textContent=token()?'A token is saved on this device.':'No token on this device.'; storageReport(); show('settings'); window.scrollTo(0,0); };
 $('#setBack').onclick=()=>{ show('library'); renderLibrary(); };
 $('#setCountIn').checked=pref('countin',true); $('#setHideBar').checked=pref('hidebar',true); $('#setMetro').checked=pref('metro',false);
 $('#setMetro').onchange=e=>setPref('metro',e.target.checked);
@@ -824,7 +842,7 @@ $('#setHideBar').onchange=e=>setPref('hidebar',e.target.checked);
 $('#setAutofit').checked=pref('autofit',true); $('#setAutofit').onchange=e=>setPref('autofit',e.target.checked);
 $('#setSave').onclick=async function(){
   const t=$('#setToken').value.trim(); if(!t){ toast('Paste a token first'); return; }
-  try{ localStorage.setItem(TOKEN_KEY,t); }catch(e){ toast('This browser blocks storage'); return; }
+  try{ localStorage.setItem(TOKEN_KEY,t); if(localStorage.getItem(TOKEN_KEY)!==t) throw new Error('not kept'); }catch(e){ toast('This browser blocks storage — the token cannot be kept here'); $('#setStatus').textContent='Storage is blocked in this browser (Private Browsing, or Safari “Block All Cookies”). Turn that off or use another browser.'; return; }
   this.disabled=true; $('#setStatus').textContent='Checking…';
   try{ ghEtag=null; await ghGet(); $('#setStatus').textContent='Token works. Setlist loaded from GitHub.'; await connect(); toast('Connected to GitHub'); }
   catch(e){ $('#setStatus').textContent='GitHub rejected that token ('+e.message+'). Check it has Contents read and write on '+REPO+'.'; }
