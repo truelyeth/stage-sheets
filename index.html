@@ -447,11 +447,12 @@ async function deleteSong(id){
 /* ---------- chord parsing ---------- */
 const ROOT='[A-G](?:#|b)?';
 const CHORD=new RegExp('^\\(?'+ROOT+'(?:m|M|maj|min|dim|aug|sus|add|°|ø|\\+|-)?\\d{0,2}(?:(?:sus|add|maj|M|b|#|\\+|-)\\d{1,2})*(?:\\/'+ROOT+')?\\)?[*]?$');
-const FILLER=/^(\||\|\||\/|-|–|—|%|x\d+|\(x\d+\)|N\.?C\.?|\.{2,}|…|\(|\)|,)$/i;
+const FILLER=/^(\|+|\/|-+|–|—|%|\(?(?:x\d+|\d+x|×\d+|\d+×)\)?|N\.?C\.?|\.{2,}|…|\(|\)|,|\*)$/i;
 const SECTION=/^\s*\[[^\]]+\]\s*$|^\s*(intro|verse|chorus|pre-?chorus|bridge|outro|solo|interlude|tag|hook|refrain|coda|ending|instrumental|break)\b[\w\s\d]*:?\s*$|^\s*(פתיחה|בית|פזמון|מעבר|גשר|סיום|סולו|אינסטרומנטלי|מקדים|קודה)[\s\dא-ת']*:?\s*$/i;
 const HEBREW=/[\u0590-\u05FF]/;
 function isChordLine(line){
-  const toks=line.trim().split(/\s+/).filter(Boolean);
+  // notes in brackets ("(2x)", "(hold)", "(let ring)") don't make a chord line a lyric line
+  const toks=line.replace(/\([^)]*\)/g,' ').trim().split(/\s+/).filter(Boolean);
   if(!toks.length) return false;
   let chords=0;
   for(const t of toks){ if(CHORD.test(t)) chords++; else if(!FILLER.test(t)) return false; }

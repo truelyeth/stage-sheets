@@ -62,8 +62,8 @@ async function ugTab(url) {
 
 /* ---------------- tab4u (Hebrew) ---------------- */
 const CHORD_RE = /^\(?[A-G](?:#|b)?(?:m|M|maj|min|dim|aug|sus|add|°|ø|\+|-)?\d{0,2}(?:(?:sus|add|maj|M|b|#|\+|-)\d{1,2})*(?:\/[A-G](?:#|b)?)?\)?[*]?$/;
-const FILLER_RE = /^(\||\|\||\/|-|–|—|%|x\d+|\(x\d+\)|N\.?C\.?|\.{2,}|…|\(|\)|,)$/i;
-function isChordLine(line) { const t = line.trim().split(/\s+/).filter(Boolean); if (!t.length) return false; let n = 0; for (const x of t) { if (CHORD_RE.test(x)) n++; else if (!FILLER_RE.test(x)) return false; } return n > 0; }
+const FILLER_RE = /^(\|+|\/|-+|–|—|%|\(?(?:x\d+|\d+x|×\d+|\d+×)\)?|N\.?C\.?|\.{2,}|…|\(|\)|,|\*)$/i;
+function isChordLine(line) { const t = line.replace(/\([^)]*\)/g, ' ').trim().split(/\s+/).filter(Boolean); if (!t.length) return false; let n = 0; for (const x of t) { if (CHORD_RE.test(x)) n++; else if (!FILLER_RE.test(x)) return false; } return n > 0; }
 function tab4uNameFromUrl(href) {
   // /tabs/songs/2137_עברי_לידר_-_יותר_טוב_כלום.html  -> artist "עברי לידר", song "יותר טוב כלום"
   const m = href.match(/tabs\/songs\/(?:\d+_)?([^?#]*?)\.html/); if (!m) return null;
