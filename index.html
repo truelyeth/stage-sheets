@@ -85,6 +85,8 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick .res .t small{display:block;color:var(--muted);font-weight:400}
 .bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
 #btnCount.on{border-color:var(--chord);color:var(--chord)}
+.barwrap{position:relative;flex:none;display:flex;flex-direction:column;min-height:0;max-height:55%}
+.barwrap:has(.bar.hide) .bar-x{display:none}
 .bar-x{position:absolute;top:-18px;right:max(12px,env(safe-area-inset-right,0px));min-height:36px;height:36px;min-width:36px;padding:0;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:16px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 /* visual metronome: a ring in the top-right that pulses on every beat, stronger on beat 1; taps pass through it */
 .metro{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:min(26vw,190px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;z-index:12;background:color-mix(in srgb,var(--chord) 55%,transparent);transform:scale(.55);opacity:.7;transition:transform .25s ease-out,background .25s,opacity .25s}
@@ -99,11 +101,11 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 #mtToggle.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
 @media (prefers-reduced-motion:reduce){ .metro{transition:none} }
 /* the bar is four color-coded zones: green = scrolling, blue = moving between songs, amber = key, grey = display */
-.zone{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
+.zone{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 6px;border-radius:12px;border:1px solid transparent;background:color-mix(in srgb,var(--zone) 12%,transparent);border-color:color-mix(in srgb,var(--zone) 35%,transparent)}
 .zone button,.zone select{border-color:color-mix(in srgb,var(--zone) 45%,var(--line))}
 .zone .lbl{color:var(--zone)}
-.z-play{--zone:var(--accent);flex:2 1 420px}
-.z-nav{--zone:#6ea8ff;flex:2 1 340px}
+.z-play{--zone:var(--accent);flex:3 1 420px}
+.z-nav{--zone:#6ea8ff;flex:2 1 300px}
 .z-nav .title{flex:1 1 90px;min-width:0}
 .z-nav button{flex:none}
 .z-key{--zone:var(--chord)}
@@ -113,7 +115,8 @@ html[data-mode="outdoor"] .z-nav{--zone:#1f5fbf}
 .hint{color:var(--muted);font-size:14px;margin-top:24px;max-width:65ch}
 
 /* Stage */
-#stage{position:fixed;top:0;left:0;right:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+#stage{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+#stage:fullscreen,:fullscreen #stage{inset:0}
 .sheet{flex:1;min-height:0;overflow-y:auto;overflow-x:auto;padding:calc(10px + env(safe-area-inset-top,0px)) var(--gutter-r) 0 var(--gutter-l);cursor:pointer;scrollbar-width:thin}
 .sheet{touch-action:pan-y;position:relative}
 .sheet pre{margin:0;font-family:var(--mono);font-size:26px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
@@ -142,13 +145,17 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .sheet .cell.after .ly:empty{min-height:1.42em}   /* a chord after the last word stays on the chord row */
 .sheet .s{color:var(--section);font-weight:600;display:inline-block;margin-top:.6em;letter-spacing:.02em}
 .sheet .end{display:block;margin-top:2em;color:var(--muted);font-size:.6em;font-family:var(--sans);letter-spacing:.1em;text-transform:uppercase}
-.bar{position:relative;flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
+.bar{position:relative;flex:0 1 auto;min-height:0;display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:6px var(--gutter-r) calc(6px + env(safe-area-inset-bottom,0px)) var(--gutter-l);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.bar button,.bar select{min-height:40px}
+.bar button.icon{min-width:40px}
+.bar .title .t{font-size:15px}
+#btnPlay{min-width:110px;font-size:16px}
 .bar .title{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;line-height:1.2}
 .bar .title .t{font-weight:600;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar .title .k{font-family:var(--mono);color:var(--chord);font-size:13px;font-variant-numeric:tabular-nums}
 .grp{display:flex;align-items:center;gap:6px}
 .grp .val{font-family:var(--mono);font-variant-numeric:tabular-nums;min-width:3ch;text-align:center;font-size:15px}
-.grp.speed{flex:1 1 220px;min-width:200px}
+.grp.speed{flex:1 1 200px;min-width:180px}
 .grp.speed input[type=range]{flex:1 1 90px;min-width:90px;padding:0;accent-color:var(--accent);height:46px;background:transparent;border:0}
 #btnPlay{min-width:130px;font-size:17px}
 #btnPlay.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
@@ -214,8 +221,9 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div id="count" class="count" hidden>3</div>
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
+  <div class="barwrap">
+  <button id="btnHideBar" class="bar-x" aria-label="Hide the controls (tap the sheet to bring them back)">✕</button>
   <div class="bar">
-    <button id="btnHideBar" class="bar-x" aria-label="Hide the controls (tap the sheet to bring them back)">✕</button>
     <div class="zone z-play" aria-label="Scrolling">
       <button id="btnPlay" class="primary">▶ Scroll</button>
       <div class="grp speed"><span class="lbl">Speed</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button><span id="speedVal" class="val">30</span></div>
@@ -238,6 +246,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
       <button id="btnOutdoor" class="icon" aria-label="Outdoor mode (high contrast)">☀</button>
       <button id="btnFull" class="icon" aria-label="Fullscreen">⛶</button>
     </div>
+  </div>
   </div>
 </div>
 
@@ -488,8 +497,8 @@ function detectKey(body){ const r=chordRoots(body||''); return r.length?r[r.leng
 function effectiveKey(s){
   const stated=(s.key||'').trim(); const roots=chordRoots(s.body||'');
   if(!roots.length) return {key:stated,fromChords:false};
-  const root=(stated.match(/^[A-G](?:#|b)?/)||[])[0];
-  if(root&&roots.some(x=>IDX[x.replace(/m$/,'')]===IDX[root])) return {key:stated,fromChords:false};
+  const root=(stated.match(/^[A-G](?:#|b)?/)||[])[0]; const capo=s.capo||0;
+  if(root&&roots.some(x=>IDX[x.replace(/m$/,'')]===IDX[root]||(IDX[x.replace(/m$/,'')]+capo)%12===IDX[root])) return {key:stated,fromChords:false};
   return {key:detectKey(s.body),fromChords:true};
 }
 function renderChordLine(line,n,flats){
@@ -889,7 +898,7 @@ function renderSheet(keepPos){
   if(state.singer) parts.push('Singer: '+state.singer);
   if(k&&n){ const m=k.match(/^([A-G](?:#|b)?)(.*)$/); if(m) k=trRoot(m[1],n,prefersFlats(s.body||''))+m[2]; parts.push(k+' (was '+base+')'); }
   else if(k) parts.push(k);
-  if(ek.fromChords&&s.key) parts.push('key read from the chords; the saved key "'+s.key+'" is not in this sheet');
+  if(ek.fromChords&&s.key) parts.push('(from chords)');
   if(s.capo) parts.push('Capo '+s.capo);
   if(n){ // same sound with the original chord shapes: move the capo by the transposition instead
     const alt=(s.capo||0)+n;
