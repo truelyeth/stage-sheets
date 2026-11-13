@@ -84,6 +84,7 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick .res .t small{display:block;color:var(--muted);font-weight:400}
 .bar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;min-height:46px;padding:0 10px;max-width:140px}
 #btnCount.on{border-color:var(--chord);color:var(--chord)}
+.bar-x{position:absolute;top:-18px;right:max(12px,env(safe-area-inset-right,0px));min-height:36px;height:36px;min-width:36px;padding:0;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:16px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 /* visual metronome: a ring in the top-right that pulses on every beat, stronger on beat 1; taps pass through it */
 .metro{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:min(26vw,190px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;z-index:12;background:color-mix(in srgb,var(--chord) 55%,transparent);transform:scale(.55);opacity:.7;transition:transform .25s ease-out,background .25s,opacity .25s}
 .metro.tick{background:var(--chord);transform:scale(1);opacity:1;transition:none;box-shadow:0 0 0 14px color-mix(in srgb,var(--chord) 30%,transparent)}
@@ -128,7 +129,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .toggle input{width:22px;height:22px;accent-color:var(--accent)}
 .sheet .c{color:var(--chord);font-weight:600}
 .sheet .leadin{height:40vh;border-bottom:1px dashed color-mix(in srgb,var(--muted) 35%,transparent);margin:0 0 .6em}
-.sheet .tail{height:70vh}
+.sheet .tail{height:22vh}
 .sheet .pair{display:block;padding-inline-start:2.5ch;text-indent:-2.5ch}
 .sheet .pair .cell{text-indent:0}
 .sheet .cell{display:inline-block;vertical-align:bottom;white-space:pre}
@@ -139,7 +140,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .sheet .cell.after{margin-inline-start:1ch}
 .sheet .s{color:var(--section);font-weight:600;display:inline-block;margin-top:.6em;letter-spacing:.02em}
 .sheet .end{display:block;margin-top:2em;color:var(--muted);font-size:.6em;font-family:var(--sans);letter-spacing:.1em;text-transform:uppercase}
-.bar{flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
+.bar{position:relative;flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
 .bar .title{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;line-height:1.2}
 .bar .title .t{font-weight:600;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar .title .k{font-family:var(--mono);color:var(--chord);font-size:13px;font-variant-numeric:tabular-nums}
@@ -205,6 +206,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
   <div class="bar">
+    <button id="btnHideBar" class="bar-x" aria-label="Hide the controls (tap the sheet to bring them back)">✕</button>
     <div class="zone z-play" aria-label="Scrolling">
       <button id="btnPlay" class="primary">▶ Scroll</button>
       <div class="grp speed"><span class="lbl">Speed</span><button id="spDown" class="icon" aria-label="Slower">−</button><input type="range" id="speed" min="1" max="120" step="1" value="30" aria-label="Scroll speed"><button id="spUp" class="icon" aria-label="Faster">+</button><span id="speedVal" class="val">30</span></div>
@@ -946,7 +948,10 @@ function tick(t){
   if(Math.abs(sheet.scrollTop-pos)>2) pos=sheet.scrollTop;   // the hand moved it; continue from there
   pos+=(+speedIn.value)*dt;
   sheet.scrollTop=pos;
-  if(sheet.scrollTop>=sheet.scrollHeight-sheet.clientHeight-1){ stopScroll(); return; }
+  // done when the END marker is on screen, or there is nothing left to scroll
+  const endEl=pre.querySelector('.end');
+  if(endEl){ const r=endEl.getBoundingClientRect(), sr=sheet.getBoundingClientRect(); if(r.bottom<=sr.bottom-6){ stopScroll(true); return; } }
+  if(sheet.scrollTop>=sheet.scrollHeight-sheet.clientHeight-1){ stopScroll(true); return; }
   raf=requestAnimationFrame(tick);
 }
 const bar=$('.bar'), countEl=$('#count');
@@ -960,7 +965,8 @@ function startScroll(){
   counting=true; let n=3; countEl.textContent=n; countEl.hidden=false; btnPlay.textContent='…'; 
   countT=setInterval(()=>{ n--; if(n>0){ countEl.textContent=n; } else { clearInterval(countT); counting=false; countEl.hidden=true; reallyStart(); } },1000);
 }
-function stopScroll(){ playing=false; cancelAnimationFrame(raf); clearInterval(countT); counting=false; countEl.hidden=true; clearTimeout(hideT); bar.classList.remove('hide'); btnPlay.textContent='▶ Scroll'; btnPlay.classList.remove('on'); }
+// finished=true when the sheet reached its end by itself: leave the controls hidden so the last lines stay readable
+function stopScroll(finished){ playing=false; cancelAnimationFrame(raf); clearInterval(countT); counting=false; countEl.hidden=true; clearTimeout(hideT); if(!finished) bar.classList.remove('hide'); btnPlay.textContent='▶ Scroll'; btnPlay.classList.remove('on'); }
 function toggleScroll(){ if(counting){ startScroll(); return; } if(playing){ if(performance.now()-startedAt<500) return; stopScroll(); } else if(bar.classList.contains('hide')){ stopScroll(); } else startScroll(); }
 /* visual metronome */
 const metro=$('#metro'), metroFlash=$('#metroFlash'), mtToggle=$('#mtToggle');
@@ -996,6 +1002,8 @@ $('#btnOutdoor').onclick=()=>{ setPref('outdoor',!pref('outdoor',false)); applyM
 applyMode();
 btnPlay.onclick=toggleScroll;
 $('#btnTop').onclick=()=>{ stopScroll(); sheet.scrollTop=0; pos=0; };
+let barHint=false;
+$('#btnHideBar').onclick=()=>{ bar.classList.add('hide'); if(!barHint){ toast('Tap the sheet to bring the controls back'); barHint=true; } };
 $('#btnBack').onclick=()=>{ show('library'); renderLibrary(); };
 $('#btnPrev').onclick=()=>openStage(curIndex()-1);
 $('#btnNext').onclick=()=>openStage(curIndex()+1);
