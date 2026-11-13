@@ -139,6 +139,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .sheet .cell .ly:empty{min-height:0}
 .sheet .cell .ch:empty{min-height:0}
 .sheet .cell.after{margin-inline-start:1ch}
+.sheet .cell.after .ly:empty{min-height:1.42em}   /* a chord after the last word stays on the chord row */
 .sheet .s{color:var(--section);font-weight:600;display:inline-block;margin-top:.6em;letter-spacing:.02em}
 .sheet .end{display:block;margin-top:2em;color:var(--muted);font-size:.6em;font-family:var(--sans);letter-spacing:.1em;text-transform:uppercase}
 .bar{position:relative;flex:none;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;background:var(--surface);border-top:1px solid var(--line);padding:8px var(--gutter-r) calc(8px + env(safe-area-inset-bottom,0px)) var(--gutter-l);max-height:46vh;overflow-y:auto}
