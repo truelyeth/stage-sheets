@@ -136,6 +136,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .toggle{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--fg);cursor:pointer}
 .toggle input{width:22px;height:22px;accent-color:var(--accent)}
 .sheet .c{color:var(--chord);font-weight:600}
+.sheet .notes{font-family:var(--sans);font-size:.9em;color:var(--section);border:1px dashed color-mix(in srgb,var(--section) 50%,transparent);border-radius:10px;padding:8px 12px;margin:0 0 14px;white-space:pre-wrap;max-width:65ch}
 .sheet .leadin{height:40vh;border-bottom:1px dashed color-mix(in srgb,var(--muted) 35%,transparent);margin:0 0 .6em}
 .sheet .tail{height:22vh}
 .sheet .pair{display:block;padding-inline-start:2.5ch;text-indent:-2.5ch}
@@ -169,7 +170,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 /* Editor / IO */
 .ed-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
 .ed-head h2{margin:0;font-size:20px;font-weight:600;flex:1;text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ed-form{display:grid;grid-template-columns:1fr 90px 80px 140px 110px;gap:12px}
+.ed-form{display:grid;grid-template-columns:1fr 90px 110px 90px 140px 110px;gap:12px}
 .ed-form .full{grid-column:1 / -1}
 .ed-foot{grid-column:1 / -1;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .io p{color:var(--muted);font-size:14px;max-width:65ch}
@@ -223,7 +224,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
 </div>
 
 <div id="stage" hidden>
-  <div id="sheet" class="sheet"><div class="leadin"></div><pre id="sheetBody"></pre><div class="tail"></div></div>
+  <div id="sheet" class="sheet"><div class="leadin"></div><div id="sheetNotes" class="notes" hidden></div><pre id="sheetBody"></pre><div class="tail"></div></div>
   <div id="count" class="count" hidden>3</div>
   <div id="metro" class="metro" hidden><div class="beat">1</div><div class="bpm"></div></div>
   <div id="metroFlash" class="metro-flash"></div>
@@ -246,6 +247,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <div class="zone z-key" aria-label="Key">
       <div class="grp"><span class="lbl">Singer</span><select id="singer" aria-label="Who is singing"></select></div>
       <div class="grp"><span class="lbl">Key</span><button id="trDown" class="icon" aria-label="Transpose down">−</button><span id="trVal" class="val">0</span><button id="trUp" class="icon" aria-label="Transpose up">+</button></div>
+      <div class="grp"><span class="lbl">My capo</span><button id="mcDown" class="icon" aria-label="My capo down">−</button><span id="mcVal" class="val">–</span><button id="mcUp" class="icon" aria-label="My capo up">+</button></div>
     </div>
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
@@ -292,7 +294,8 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     <label class="wide">YouTube link<input id="edYt" placeholder="Optional — otherwise the ▶ YT button searches for it" autocomplete="off" inputmode="url"></label>
     <label class="wide">Spotify link<input id="edSp" placeholder="Optional — otherwise the ♫ Sp button searches for it" autocomplete="off" inputmode="url"></label>
     <label>Key<input id="edKey" placeholder="G" autocomplete="off"></label>
-    <label>Capo<input id="edCapo" type="number" min="0" max="9" placeholder="0"></label>
+    <label>Capo (original)<input id="edCapo" type="number" min="0" max="9" placeholder="0"></label>
+    <label>My capo<input id="edMyCapo" type="number" min="0" max="9" placeholder="same"></label>
     <label>Scroll speed (px/s)<input id="edSpeed" type="number" min="1" max="120" value="30"></label>
     <label>Tempo (bpm)<input id="edBpm" type="number" min="30" max="300" placeholder="—"></label>
     <div class="full ed-row">
@@ -300,6 +303,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
       <button id="edClean">Clean up</button>
       <span class="note">Copy a chord sheet from Ultimate Guitar (or anywhere), paste it here. Clean up strips their markup and fills in title, key and capo when it can.</span>
     </div>
+    <label class="full">Notes for me (shown at the top on stage)<textarea id="edNotes" rows="2" style="min-height:0;height:auto;white-space:pre-wrap;font-family:var(--sans)" placeholder="e.g. play the original chords but capo 2 · or: −2 and capo 1 · start soft, fingerpicked"></textarea></label>
     <label class="full">Chords and lyrics<textarea id="edBody" spellcheck="false" placeholder="[Verse 1]
 G            C        G
 Paste your chord sheet here"></textarea></label>
@@ -373,7 +377,7 @@ const TOKEN_KEY='stagesheets.token';
 function token(){ try{ return localStorage.getItem(TOKEN_KEY)||''; }catch(e){ return ''; } }
 function loadLocal(){ try{const r=localStorage.getItem(KEY); if(r){const d=JSON.parse(r); if(d&&Array.isArray(d.songs)) state.songs=d.songs; if(d&&Array.isArray(d.setlists)) state.setlists=d.setlists; if(d&&Array.isArray(d.singers)) state.singers=d.singers; if(d&&d.font) state.font=d.font; if(d&&d.listId) state.listId=d.listId; if(d&&d.singer) state.singer=d.singer;}}catch(e){} }
 function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify({songs:state.songs,setlists:state.setlists,singers:state.singers,font:state.font,listId:state.listId,singer:state.singer}));}catch(e){} }
-const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.yt) d.yt=s.yt; if(s.sp) d.sp=s.sp; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
+const toDoc=s=>{ const d={id:s.id,title:s.title||'Untitled',artist:s.artist||'',key:s.key||'',capo:s.capo||0,speed:s.speed||30,tr:s.tr||0,body:s.body||''}; if(s.bpm) d.bpm=s.bpm; if(s.beats&&s.beats!==4) d.beats=s.beats; if(s.metro===false) d.metro=false; if(s.yt) d.yt=s.yt; if(s.sp) d.sp=s.sp; if(s.mycapo!=null&&s.mycapo!=='') d.mycapo=+s.mycapo; if(s.notes) d.notes=s.notes; if(s.countin===true||s.countin===false) d.countin=s.countin; if(s.keys&&Object.keys(s.keys).length) d.keys=Object.assign({},s.keys); return d; };
 const pref=(k,d)=>{ try{ const v=localStorage.getItem('stagesheets.'+k); return v==null?d:v==='1'; }catch(e){ return d; } };
 const setPref=(k,v)=>{ try{ localStorage.setItem('stagesheets.'+k,v?'1':'0'); }catch(e){} };
 function setChip(txt,on){ const c=$('#syncChip'); c.textContent=txt; c.classList.toggle('on',!!on); }
@@ -612,7 +616,7 @@ function renderLibrary(){
   songs.forEach((s,i)=>{
     const tr=effTr(s);
     const li=document.createElement('li'); li.className='song';
-    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(effectiveKey(s).key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}</span><span>${s.speed} px/s</span></span></button>
+    li.innerHTML=`<button class="open" data-i="${i}"><span class="num">${i+1}</span><span class="t">${esc(s.title||'Untitled')}${s.artist?' <span style="color:var(--muted);font-weight:400;font-size:15px">· '+esc(s.artist)+'</span>':''}</span><span class="meta"><span class="key">${esc(effectiveKey(s).key||'')}${tr?' '+(tr>0?'+':'')+tr:''}${s.capo?' · capo '+s.capo:''}${(s.mycapo!=null&&s.mycapo!==''&&+s.mycapo!==(s.capo||0))?' · mine '+(+s.mycapo||'off'):''}</span><span>${s.speed} px/s</span></span></button>
       <div class="tools"><button data-up="${i}" aria-label="Move up">▲</button><button data-down="${i}" aria-label="Move down">▼</button></div>
       <div class="tools"><button data-edit="${s.id}" aria-label="Edit">Edit</button></div>
       <div class="tools"><a class="yt" target="_blank" rel="noopener" href="${esc(listenUrl(s,'yt'))}" aria-label="Hear it on YouTube">▶ YT</a><a class="sp" target="_blank" rel="noopener" href="${esc(listenUrl(s,'sp'))}" aria-label="Hear it on Spotify">♫ Sp</a></div>`;
@@ -673,7 +677,7 @@ function openEditor(id){
   if(!s) return;
   editingId=id||null;
   $('#edHeading').textContent=id?'Edit song':'New song';
-  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edYt').value=s.yt||''; $('#edSp').value=s.sp||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
+  $('#edTitle').value=s.title; $('#edArtist').value=s.artist||''; $('#edYt').value=s.yt||''; $('#edSp').value=s.sp||''; $('#edKey').value=s.key||''; $('#edCapo').value=s.capo||''; $('#edMyCapo').value=(s.mycapo!=null&&s.mycapo!=='')?s.mycapo:''; $('#edNotes').value=s.notes||''; $('#edBpm').value=s.bpm||''; $('#edSpeed').value=s.speed||30; $('#edBody').value=s.body||'';
   $('#edDup').hidden=!id;
   $('#edDelete').hidden=!id||(!!s.fromFile&&!token()); $('#edDelete').textContent='Delete song';
   show('editor'); window.scrollTo(0,0);
@@ -683,7 +687,7 @@ $('#edSave').onclick=async function(){
   this.disabled=true;
   const prev=editingId?state.songs.find(x=>x.id===editingId):null;
   const s=Object.assign({},prev||{id:uid(),tr:0},{
-    title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), yt:$('#edYt').value.trim(), sp:$('#edSp').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)),
+    title:$('#edTitle').value.trim()||'Untitled', artist:$('#edArtist').value.trim(), yt:$('#edYt').value.trim(), sp:$('#edSp').value.trim(), key:$('#edKey').value.trim(), capo:Math.max(0,Math.min(9,+$('#edCapo').value||0)), mycapo:$('#edMyCapo').value===''?null:Math.max(0,Math.min(9,+$('#edMyCapo').value||0)), notes:$('#edNotes').value.trim(),
     speed:Math.min(120,Math.max(1,+$('#edSpeed').value||30)), bpm:Math.max(0,Math.min(300,Math.round(+$('#edBpm').value)||0)), body:$('#edBody').value });
   const isNew=!prev;
   await writeSong(s);
@@ -896,6 +900,7 @@ function renderSheet(keepPos){
   const s=cur(); if(!s) return; const n=effTr(s);
   const html=renderBody(s.body||'',n);
   pre.dir=HEBREW.test(s.body||'')?'rtl':'ltr';
+  const notesEl=$('#sheetNotes'); notesEl.textContent=s.notes||''; notesEl.hidden=!s.notes;
   $('#btnCount').classList.toggle('on',countInFor(s));
   if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
@@ -906,6 +911,9 @@ function renderSheet(keepPos){
   else if(k) parts.push(k);
   if(ek.fromChords&&s.key) parts.push('(from chords)');
   if(s.capo) parts.push('Capo '+s.capo);
+  const mc=(s.mycapo!=null&&s.mycapo!=='')?+s.mycapo:null;
+  if(mc!=null&&mc!==(s.capo||0)) parts.push('mine: capo '+(mc||'off'));
+  $('#mcVal').textContent=mc!=null?mc:'–';
   if(n){ // same sound with the original chord shapes: move the capo by the transposition instead
     const alt=(s.capo||0)+n;
     if(alt===0) parts.push('or original chords, no capo');
@@ -938,6 +946,10 @@ function fitNote(){ const f=parseFloat(pre.style.fontSize); if(pref('autofit',tr
 
 // transpose is remembered per song, and separately per singer when one is chosen
 async function setTr(n){ const s=cur(); n=Math.max(-11,Math.min(11,n)); if(state.singer){ s.keys=s.keys||{}; s.keys[state.singer]=n; } else s.tr=n; renderSheet(true); await writeSong(s); }
+// "my capo": where I put it, kept apart from the sheet's own capo
+async function setMyCapo(v){ const s=cur(); if(!s) return; const cur0=(s.mycapo!=null&&s.mycapo!=='')?+s.mycapo:(s.capo||0); const n=Math.max(0,Math.min(9,cur0+v)); s.mycapo=n; renderSheet(true); toast(n===(s.capo||0)?'My capo = the sheet\'s capo ('+n+')':'My capo '+n+(s.capo?' (sheet says '+s.capo+')':'')); await writeSong(s); }
+holdable($('#mcUp'),()=>setMyCapo(1));
+holdable($('#mcDown'),()=>setMyCapo(-1));
 holdable($('#trUp'),()=>setTr(effTr(cur())+1));
 holdable($('#trDown'),()=>setTr(effTr(cur())-1));
 const singerSel=$('#singer');
