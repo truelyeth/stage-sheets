@@ -82,6 +82,9 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .pick label{flex-direction:row;align-items:center;gap:12px;font-size:17px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
 .pick input{width:22px;height:22px;accent-color:var(--accent)}
 .pick .k{font-family:var(--mono);color:var(--chord);font-size:14px;margin-left:auto}
+.pick .pos{font-family:var(--mono);color:var(--accent);min-width:2.5ch;font-weight:600}
+.pick .mv{display:flex;gap:4px}
+.pick .mv button{min-height:0;height:32px;min-width:36px;padding:0;font-size:13px;color:var(--muted)}
 .pick .res{display:flex;flex-direction:row;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
 .pick .res button{flex:none}
 .pick .res .meta{color:var(--muted);font-size:13px;white-space:nowrap}
@@ -674,7 +677,7 @@ function renderLibrary(){
   const nb=document.createElement('button'); nb.textContent='+ New list'; nb.id='btnNewList'; listBar.appendChild(nb);
   const l=curList();
   listTools.hidden=!l;
-  if(l) listTools.innerHTML=`<button id="btnPick" class="primary">Choose songs</button><button id="btnRenameList">Rename</button><button id="btnDelList" class="danger">Delete list</button>`;
+  if(l) listTools.innerHTML=`<button id="btnPick" class="primary">Choose songs</button><button id="btnRenameList">Rename</button><button id="btnDelList" class="danger">Delete list</button><span class="hint" style="margin:0;font-size:13px">▲▼ on a song reorders this list</span>`;
   const songs=visibleSongs();
   list.innerHTML='';
   if(!songs.length){ list.innerHTML='<li class="empty">'+(l?'This list is empty. Tap "Choose songs" to add some.':'No songs yet. Add one and paste its chord sheet.')+'</li>'; return; }
@@ -715,23 +718,45 @@ listTools.addEventListener('click',e=>{
   else if(b.id==='btnDelList'){ if(b.textContent!=='Really delete?'){ b.textContent='Really delete?'; return; } state.setlists=state.setlists.filter(x=>x.id!==l.id); state.listId=''; persist('Delete list: '+l.name); renderLibrary(); toast('List deleted (songs are still in All songs)'); }
 });
 // pick which songs are in the list; order stays as it was, new picks go to the end
+// the picker keeps the order you tap: chosen songs are numbered, with ▲▼ to adjust before Done
+let pickOrder=[];
 function openPicker(){
   const l=curList(); if(!l) return;
   $('#pkHeading').textContent=l.name;
+  pickOrder=l.ids.slice();
   const ul=$('#pickList'); ul.innerHTML='';
   state.songs.forEach(s=>{
     const li=document.createElement('li');
-    li.innerHTML=`<label><input type="checkbox" value="${s.id}" ${l.ids.includes(s.id)?'checked':''}> <span>${esc(s.title||'Untitled')}${s.artist?' · '+esc(s.artist):''}</span><span class="k">${esc(s.key||'')}</span></label>`;
+    li.innerHTML=`<label><input type="checkbox" value="${s.id}" ${l.ids.includes(s.id)?'checked':''}> <span class="pos"></span><span>${esc(s.title||'Untitled')}${s.artist?' · '+esc(s.artist):''}</span><span class="k">${esc(s.key||'')}</span><span class="mv"><button type="button" data-up aria-label="Earlier">▲</button><button type="button" data-down aria-label="Later">▼</button></span></label>`;
     ul.appendChild(li);
   });
+  refreshPicker();
   show('picker'); window.scrollTo(0,0);
 }
+function refreshPicker(){
+  // chosen songs float to the top in their order; the rest follow in setlist order
+  const ul=$('#pickList'); const items=[...ul.children];
+  const byId=new Map(items.map(li=>[li.querySelector('input').value,li]));
+  pickOrder.forEach((id,i)=>{ const li=byId.get(id); if(!li) return; li.querySelector('.pos').textContent=(i+1)+'.'; li.querySelector('.mv').style.visibility='visible'; ul.appendChild(li); });
+  items.filter(li=>!pickOrder.includes(li.querySelector('input').value)).forEach(li=>{ li.querySelector('.pos').textContent=''; li.querySelector('.mv').style.visibility='hidden'; ul.appendChild(li); });
+}
+$('#pickList').addEventListener('change',e=>{
+  const inp=e.target.closest('input[type=checkbox]'); if(!inp) return;
+  if(inp.checked){ if(!pickOrder.includes(inp.value)) pickOrder.push(inp.value); } else pickOrder=pickOrder.filter(x=>x!==inp.value);
+  refreshPicker();
+});
+$('#pickList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-up],button[data-down]'); if(!b) return;
+  e.preventDefault();
+  const id=b.closest('li').querySelector('input').value; const i=pickOrder.indexOf(id); if(i<0) return;
+  const j=b.hasAttribute('data-up')?i-1:i+1; if(j<0||j>=pickOrder.length) return;
+  [pickOrder[i],pickOrder[j]]=[pickOrder[j],pickOrder[i]]; refreshPicker();
+});
 $('#pkBack').onclick=()=>{ show('library'); renderLibrary(); };
 $('#pkDone').onclick=()=>{
   const l=curList(); if(!l) return;
-  const on=new Set(Array.from(document.querySelectorAll('#pickList input:checked')).map(i=>i.value));
-  const kept=l.ids.filter(id=>on.has(id)); for(const id of on) if(!kept.includes(id)) kept.push(id);
-  l.ids=kept; persist('Update list: '+l.name); show('library'); renderLibrary();
+  l.ids=pickOrder.filter(id=>state.songs.some(s=>s.id===id));
+  persist('Update list: '+l.name); show('library'); renderLibrary();
 };
 $('#btnAdd').onclick=()=>openEditor(null);
 
