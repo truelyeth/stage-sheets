@@ -129,6 +129,7 @@ code{font-family:var(--mono);color:var(--chord);font-size:.95em}
 .diag .mute{font:600 11px var(--sans);fill:var(--muted)}
 .diag .fret{font:600 12px var(--mono);fill:var(--muted)}
 #btnChords.on{background:var(--chord);border-color:var(--chord);color:#1d1403}
+#btnTabs.off{text-decoration:line-through;color:var(--muted)}
 #btnArrange.on{background:#c084fc;border-color:#c084fc;color:#1e0a2e}
 #btnMine.on{border-color:#c084fc;color:#c084fc}
 .sheet pre.arr .c{outline:1px dashed color-mix(in srgb,#c084fc 60%,transparent);outline-offset:2px}
@@ -312,6 +313,7 @@ html[data-mode="outdoor"] .sheet .c{font-weight:700}
     </div>
     <div class="zone z-view" aria-label="Display">
       <div class="grp"><span class="lbl">Size</span><button id="fsDown" class="icon" aria-label="Smaller text">A−</button><button id="fsUp" class="icon" aria-label="Larger text">A+</button><button id="fsFit" aria-label="Fit longest line to screen">Fit</button></div>
+      <button id="btnTabs" aria-label="Show or hide tablature lines">Tabs</button>
       <button id="btnChords" aria-label="Show the chord shapes used in this song">Chords</button>
       <button id="btnPractice" aria-label="Practice mode: hide parts of the sheet, tap to peek">Practice</button>
       <button id="btnArrange" aria-label="Arrange mode: tap chords and lines to make your own version">Arrange</button><button id="btnIdeas" hidden aria-label="Arrangement ideas for this song">Ideas</button><button id="btnMine" hidden aria-label="Switch between the original and my version">Original</button><button id="prLess" class="icon" hidden aria-label="Show less">−</button><button id="prMore" class="icon" hidden aria-label="Show more">+</button>
@@ -623,8 +625,26 @@ function renderPair(cl,ll,n,flats){
   if(a<tailEnd){ const tc=tcl.slice(a,tailEnd).trim(), tl=ll.slice(a,tailEnd).trim(); if(tc||tl) out.push('<span class="cell after"><span class="ch">'+markChords(tc)+'</span><span class="ly">'+esc(tl)+'</span></span>'); }
   return '<span class="pair">'+out.join(' ')+'</span>';
 }
+// guitar tablature: "e|--7-7--8--|" lines, bare "|---3---|" lines, and the odd "h/p" legend; never a chord or lyric line
+function isTabLine(line){
+  const t=line.trim(); if(!t) return false;
+  if(/^[A-Ga-g](?:#|b)?\s*[|:]/.test(t)){ const rest=t.replace(/^[A-Ga-g](?:#|b)?\s*[|:]+/,''); return /[-–]/.test(rest)&&!/[A-Za-z]{2,}/.test(rest.replace(/[hpbrsx~]/g,'')); }
+  if(/^[|]?[-–0-9hpbrsx~\/\\()^v.,|\s]+[|]?$/.test(t)&&(t.match(/[-–]/g)||[]).length>=3&&/\d/.test(t)) return true;
+  if(/^[hpbrsx~\/\\^]{1,2}\s*=\s*[a-z\- ]+$/i.test(t)) return true;   // tab legend: "h = hammer-on"
+  return false;
+}
+function stripTabs(body){
+  const out=[]; let blank=0;
+  for(const line of body.replace(/\r/g,'').split('\n')){
+    if(isTabLine(line)) continue;
+    if(!line.trim()){ if(++blank>1) continue; } else blank=0;
+    out.push(line);
+  }
+  return out.join('\n');
+}
 function renderBody(body,n){
   body=decodeEntities(body);
+  if(pref('hidetabs',false)) body=stripTabs(body);
   const flats=prefersFlats(body);
   const secs=[]; let cur=[]; let li=0;   // li = index of the content line within its section (cue card shows the first few)
   const flush=()=>{ if(cur.length) secs.push('<span class="sec">'+cur.join('\n')+'</span>'); cur=[]; };
@@ -1230,6 +1250,9 @@ function renderStrip(){
   const names=songChords();
   chordStrip.innerHTML=names.map(n=>{ const sh=shapesFor(n)[0]; return '<div class="one" data-chord="'+esc(n)+'"><div class="nm">'+esc(n)+'</div>'+(sh?diagramSVG(sh,64):'<div class="alt">?</div>')+'</div>'; }).join('');
 }
+function renderTabsBtn(){ $('#btnTabs').classList.toggle('off',pref('hidetabs',false)); $('#btnTabs').title=pref('hidetabs',false)?'Tab lines hidden — tap to show':'Tab lines shown — tap to hide'; }
+renderTabsBtn();
+$('#btnTabs').onclick=()=>{ setPref('hidetabs',!pref('hidetabs',false)); renderTabsBtn(); lastRendered=''; renderSheet(true); applyFont(); toast(pref('hidetabs',false)?'Tab lines hidden':'Tab lines shown'); };
 $('#btnChords').onclick=function(){ const on=chordStrip.hidden; if(on){ renderStrip(); chordStrip.hidden=false; } else chordStrip.hidden=true; this.classList.toggle('on',on); };
 chordStrip.addEventListener('click',e=>{ const o=e.target.closest('.one'); if(o) showChordCard(o.dataset.chord,o); });
 /* ---------- arrange mode: make my own version ---------- */
