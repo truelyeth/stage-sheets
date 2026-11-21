@@ -184,6 +184,7 @@ html[data-mode="outdoor"] .z-nav{--zone:#1f5fbf}
 .sheet pre{margin:0;font-family:var(--mono);font-size:26px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:4}
 .sheet pre[dir=rtl]{text-align:right}
 .sheet .c{unicode-bidi:isolate;direction:ltr}
+.sheet pre[dir=rtl] .cl{direction:ltr;unicode-bidi:isolate;text-align:right}
 .sheet .s{unicode-bidi:plaintext}
 html[data-mode="outdoor"] .sheet .c{font-weight:700}
 .bar.hide{display:none}
@@ -408,6 +409,8 @@ Paste your chord sheet here"></textarea></label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setHideBar"> Hide the controls while scrolling (tap the sheet to pause and bring them back)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setMetro"> Show the beat automatically when a song opens (♩ on stage turns it off for that song)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setAutofit"> Shrink text so the longest line fits the screen (never below 14px; your A− A+ size is the ceiling)</label>
+  <div style="margin-top:14px"><div class="lbl" style="margin-bottom:6px">Scroll speed on this device</div>
+  <div class="ed-row"><button id="devSpDown" class="icon">−</button><span id="devSpVal" class="val" style="font-family:var(--mono);min-width:5ch;text-align:center">×1.00</span><button id="devSpUp" class="icon">+</button><span class="note">A song's speed is shared between devices and already scales with the text size. Use this only if this device still runs ahead or behind: ×0.8 is 20% slower here, ×1.2 faster. Saved on this device only.</span></div></div>
 </div>
 
 <div id="io" class="wrap io" hidden>
@@ -601,7 +604,13 @@ function transposeLinePlain(line,n,flats){
   return out;
 }
 const markChords=txt=>esc(txt).replace(/\S+/g,t=>CHORD.test(t)?'<span class="c">'+t+'</span>':t);
-function renderPair(cl,ll,n,flats){
+function mirrorChords(cl){
+  const t=cl.replace(/\s+$/,''); const W=t.length; const out=new Array(W).fill(' '); let m; const re=/\S+/g;
+  while((m=re.exec(t))){ const start=W-m.index-m[0].length; for(let i=0;i<m[0].length;i++) out[start+i]=m[0][i]; }
+  return out.join('');
+}
+function renderPair(cl,ll,n,flats,rtl){
+  if(rtl) cl=mirrorChords(cl);
   // chords sit at fixed columns over the lyric; cut both lines into word-sized cells that wrap together,
   // never cutting through a chord name, so each chord stays over the syllable it was written on
   const tcl=transposeLinePlain(cl,n,flats);
@@ -645,6 +654,7 @@ function stripTabs(body){
 function renderBody(body,n){
   body=decodeEntities(body);
   if(pref('hidetabs',false)) body=stripTabs(body);
+  const rtl=HEBREW.test(body);
   const flats=prefersFlats(body);
   const secs=[]; let cur=[]; let li=0;   // li = index of the content line within its section (cue card shows the first few)
   const flush=()=>{ if(cur.length) secs.push('<span class="sec">'+cur.join('\n')+'</span>'); cur=[]; };
@@ -655,7 +665,7 @@ function renderBody(body,n){
     if(SECTION.test(line)){ flush(); li=0; cur.push('<span class="s">'+esc(line.trim())+'</span>'); }
     else if(isChordLine(line)){
       const next=lines[i+1];
-      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats))); i++; }
+      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats,rtl))); i++; }
       else cur.push(mark('<span class="cl">'+renderChordLine(line,n,flats)+'</span>'));
     }
     else if(line.trim()) cur.push(mark('<span class="l">'+esc(line).replace(/\S+/g,w=>'<span class="w">'+w+'</span>')+'</span>'));
@@ -970,6 +980,11 @@ $('#setMetro').onchange=e=>setPref('metro',e.target.checked);
 $('#setCountIn').onchange=e=>setPref('countin',e.target.checked);
 $('#setHideBar').onchange=e=>setPref('hidebar',e.target.checked);
 $('#setAutofit').checked=pref('autofit',true); $('#setAutofit').onchange=e=>setPref('autofit',e.target.checked);
+function renderDevSpeed(){ $('#devSpVal').textContent='×'+deviceSpeed().toFixed(2); }
+function setDevSpeed(v){ v=Math.min(2,Math.max(0.5,Math.round(v*20)/20)); try{ localStorage.setItem('stagesheets.devspeed',v); }catch(e){} renderDevSpeed(); }
+renderDevSpeed();
+$('#devSpDown').onclick=()=>setDevSpeed(deviceSpeed()-0.05);
+$('#devSpUp').onclick=()=>setDevSpeed(deviceSpeed()+0.05);
 $('#setSave').onclick=async function(){
   const t=$('#setToken').value.trim(); if(!t){ toast('Paste a token first'); return; }
   try{ localStorage.setItem(TOKEN_KEY,t); if(localStorage.getItem(TOKEN_KEY)!==t) throw new Error('not kept'); }catch(e){ toast('This browser blocks storage — the token cannot be kept here'); $('#setStatus').textContent='Storage is blocked in this browser (Private Browsing, or Safari “Block All Cookies”). Turn that off or use another browser.'; return; }
@@ -1100,6 +1115,7 @@ function holdable(btn,fn){
   btn.onclick=e=>{ if(held) e.preventDefault(); };   // the pointerdown already did the first step
   btn.style.touchAction='none'; btn.style.userSelect='none'; btn.style.webkitUserSelect='none';
 }
+function deviceSpeed(){ try{ const v=parseFloat(localStorage.getItem('stagesheets.devspeed')); return v>0?v:1; }catch(e){ return 1; } }
 function nudgeSpeed(d){ speedIn.value=Math.min(120,Math.max(1,+speedIn.value+d)); speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
 holdable($('#spDown'),()=>nudgeSpeed(-1));
 holdable($('#spUp'),()=>nudgeSpeed(1));
@@ -1108,7 +1124,8 @@ function tick(t){
   if(!playing) return;
   const dt=Math.min(0.1,(t-last)/1000); last=t;
   if(Math.abs(sheet.scrollTop-pos)>2) pos=sheet.scrollTop;   // the hand moved it; continue from there
-  pos+=(+speedIn.value)*dt;
+  const fontPx=parseFloat(pre.style.fontSize)||26;
+  pos+=(+speedIn.value)*(fontPx/26)*deviceSpeed()*dt;
   sheet.scrollTop=pos;
   // done when the END marker is on screen, or there is nothing left to scroll
   const endEl=pre.querySelector('.end');
