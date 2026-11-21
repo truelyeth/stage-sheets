@@ -410,7 +410,7 @@ Paste your chord sheet here"></textarea></label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setMetro"> Show the beat automatically when a song opens (♩ on stage turns it off for that song)</label>
   <label class="toggle" style="margin-top:10px"><input type="checkbox" id="setAutofit"> Shrink text so the longest line fits the screen (never below 14px; your A− A+ size is the ceiling)</label>
   <div style="margin-top:14px"><div class="lbl" style="margin-bottom:6px">Scroll speed on this device</div>
-  <div class="ed-row"><button id="devSpDown" class="icon">−</button><span id="devSpVal" class="val" style="font-family:var(--mono);min-width:5ch;text-align:center">×1.00</span><button id="devSpUp" class="icon">+</button><span class="note">A song's speed is shared between devices and already scales with the text size. Use this only if this device still runs ahead or behind: ×0.8 is 20% slower here, ×1.2 faster. Saved on this device only.</span></div></div>
+  <div class="ed-row"><button id="devSpDown" class="icon">−</button><span id="devSpVal" class="val" style="font-family:var(--mono);min-width:5ch;text-align:center">×1.00</span><button id="devSpUp" class="icon">+</button><span class="note">A song's speed is shared between devices and already adjusts for text size and line wrapping, so a song takes the same time to scroll everywhere. Use this only if this device still runs ahead or behind: ×0.8 is 20% slower here, ×1.2 faster. Saved on this device only.</span></div></div>
 </div>
 
 <div id="io" class="wrap io" hidden>
@@ -1030,7 +1030,7 @@ function renderSheet(keepPos){
   const notesEl=$('#sheetNotes'); notesEl.textContent=s.notes||''; notesEl.hidden=!s.notes;
   chordCard.hidden=true;
   $('#btnCount').classList.toggle('on',countInFor(s));
-  if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } }
+  if(html!==lastRendered){ const sp=sheet.scrollTop; pre.innerHTML=html; lastRendered=html; if(keepPos){ sheet.scrollTop=sp; pos=sp; } refHtml=html; refHeight=0; }
   if(!chordStrip.hidden) renderStrip();
   if(practice){ pre.classList.add('p'+practice); updatePracticeStyle(); }
   $('#stTitle').textContent=(curIndex()+1)+'. '+(s.title||'Untitled')+(s.artist?' · '+s.artist:'');
@@ -1115,6 +1115,14 @@ function holdable(btn,fn){
   btn.onclick=e=>{ if(held) e.preventDefault(); };   // the pointerdown already did the first step
   btn.style.touchAction='none'; btn.style.userSelect='none'; btn.style.webkitUserSelect='none';
 }
+// reference height: the same sheet rendered at 26px with no wrapping (what a tablet shows); measured off-screen once per render
+let refHeight=0, refHtml='';
+function measureRef(html,dir){
+  const ghost=document.createElement('pre'); ghost.innerHTML=html; ghost.dir=dir; ghost.className='';
+  ghost.style.cssText='position:absolute;visibility:hidden;left:0;top:0;width:100000px;font-size:26px;pointer-events:none';
+  sheet.appendChild(ghost); const h=ghost.getBoundingClientRect().height; ghost.remove(); return h;
+}
+function scrollScale(){ const h=pre.getBoundingClientRect().height; if(h>0&&refHtml&&!refHeight) refHeight=measureRef(refHtml,pre.dir); return (h>0&&refHeight>0)?Math.max(0.2,Math.min(5,h/refHeight)):1; }
 function deviceSpeed(){ try{ const v=parseFloat(localStorage.getItem('stagesheets.devspeed')); return v>0?v:1; }catch(e){ return 1; } }
 function nudgeSpeed(d){ speedIn.value=Math.min(120,Math.max(1,+speedIn.value+d)); speedIn.dispatchEvent(new Event('input')); commitSpeed(); }
 holdable($('#spDown'),()=>nudgeSpeed(-1));
@@ -1124,8 +1132,7 @@ function tick(t){
   if(!playing) return;
   const dt=Math.min(0.1,(t-last)/1000); last=t;
   if(Math.abs(sheet.scrollTop-pos)>2) pos=sheet.scrollTop;   // the hand moved it; continue from there
-  const fontPx=parseFloat(pre.style.fontSize)||26;
-  pos+=(+speedIn.value)*(fontPx/26)*deviceSpeed()*dt;
+  pos+=(+speedIn.value)*scrollScale()*deviceSpeed()*dt;
   sheet.scrollTop=pos;
   // done when the END marker is on screen, or there is nothing left to scroll
   const endEl=pre.querySelector('.end');
