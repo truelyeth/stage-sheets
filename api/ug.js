@@ -97,7 +97,7 @@ function sliceElement(html, idAttr) {
 function htmlToText(h) {
   return decodeEntities(h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(tr|div|p|h\d|li|table)>/gi, '\n').replace(/<[^>]+>/g, ''))
-    .replace(/ /g, ' ').replace(/\r/g, '');
+    .replace(/ /g, ' ').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00AD]/g, '').replace(/\r/g, '');
 }
 async function tab4uTab(url) {
   const html = await getHtml(url);

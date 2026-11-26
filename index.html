@@ -666,8 +666,9 @@ function renderBody(body,n){
     const line=lines[i];
     if(SECTION.test(line)){ flush(); li=0; cur.push('<span class="s">'+esc(line.trim())+'</span>'); }
     else if(isChordLine(line)){
-      const next=lines[i+1];
-      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats,rtl))); i++; }
+      let next=lines[i+1], skip=1;
+      if(next!=null&&!next.trim()&&lines[i+2]!=null&&lines[i+2].trim()&&!isChordLine(lines[i+2])&&!SECTION.test(lines[i+2])&&!isTabLine(lines[i+2])){ next=lines[i+2]; skip=2; }
+      if(next!=null&&next.trim()&&!isChordLine(next)&&!SECTION.test(next)){ cur.push(mark(renderPair(line,next,n,flats,rtl))); i+=skip; }
       else cur.push(mark('<span class="cl">'+renderChordLine(line,n,flats)+'</span>'));
     }
     else if(line.trim()) cur.push(mark('<span class="l">'+esc(line).replace(/\S+/g,w=>'<span class="w">'+w+'</span>')+'</span>'));
@@ -823,7 +824,9 @@ $('#edDup').onclick=async function(){
 };
 // --- paste helpers: Ultimate Guitar and most chord sites copy with markup and header lines we don't want on stage
 const ENT={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',hellip:'…',mdash:'—',ndash:'–',laquo:'«',raquo:'»',copy:'©',deg:'°',eacute:'é',egrave:'è',agrave:'à',ccedil:'ç',ntilde:'ñ',uuml:'ü',ouml:'ö',auml:'ä',szlig:'ß'};
+const BIDI=/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00AD]/g;
 function decodeEntities(t){
+  t=t.replace(BIDI,'').replace(/\u00a0/g,' ');
   if(t.indexOf('&')<0) return t;
   return t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,(m,c)=>{
     if(c[0]==='#'){ const n=c[1]==='x'||c[1]==='X'?parseInt(c.slice(2),16):parseInt(c.slice(1),10); return isNaN(n)?m:String.fromCodePoint(n); }
