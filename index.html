@@ -546,7 +546,7 @@ async function deleteSong(id){
 
 /* ---------- chord parsing ---------- */
 const ROOT='[A-G](?:#|b)?';
-const CHORD=new RegExp('^\\(?'+ROOT+'(?:m|M|maj|min|dim|aug|sus|add|°|ø|\\+|-)?\\d{0,2}(?:(?:sus|add|maj|M|b|#|\\+|-)\\d{1,2})*(?:\\/'+ROOT+')?\\)?[*]?$');
+const CHORD=new RegExp('^\\(?'+ROOT+'(?:m|M|maj|min|dim|aug|sus|add|°|ø|\\+|-)?\\d{0,2}(?:(?:sus|add|maj|M|b|#|\\+|-)\\d{1,2})*(?:\\+|°|ø|aug|dim)?(?:\\/'+ROOT+')?\\)?[*]?$');
 const FILLER=/^(\|+|\/|-+|–|—|%|\(?(?:x\d+|\d+x|×\d+|\d+×)\)?|N\.?C\.?|\.{2,}|…|\(|\)|,|\*)$/i;
 const SECTION=/^\s*\[[^\]]+\]\s*$|^\s*(intro|verse|chorus|pre-?chorus|bridge|outro|solo|interlude|tag|hook|refrain|coda|ending|instrumental|break)\b[\w\s\d]*:?\s*$|^\s*(פתיחה|בית|פזמון|מעבר|גשר|סיום|סולו|אינסטרומנטלי|מקדים|קודה)[\s\dא-ת']*:?\s*$/i;
 const HEBREW=/[\u0590-\u05FF]/;
@@ -604,13 +604,14 @@ function transposeLinePlain(line,n,flats){
   return out;
 }
 const markChords=txt=>esc(txt).replace(/\S+/g,t=>CHORD.test(t)?'<span class="c">'+t+'</span>':t);
-function mirrorChords(cl){
-  const t=cl.replace(/\s+$/,''); const W=t.length; const out=new Array(W).fill(' '); let m; const re=/\S+/g;
-  while((m=re.exec(t))){ const start=W-m.index-m[0].length; for(let i=0;i<m[0].length;i++) out[start+i]=m[0][i]; }
+function mirrorChords(cl,W){
+  const t=cl.replace(/\s+$/,''); W=Math.max(W||0,t.length); const out=new Array(W).fill(' '); let m; const re=/\S+/g;
+  while((m=re.exec(t))){ const start=Math.max(0,W-m.index-m[0].length); for(let i=0;i<m[0].length&&start+i<W;i++) out[start+i]=m[0][i]; }
   return out.join('');
 }
+let rtlWidth=0;   // widest line of the current sheet, set by renderBody
 function renderPair(cl,ll,n,flats,rtl){
-  if(rtl) cl=mirrorChords(cl);
+  if(rtl) cl=mirrorChords(cl,rtlWidth);
   // chords sit at fixed columns over the lyric; cut both lines into word-sized cells that wrap together,
   // never cutting through a chord name, so each chord stays over the syllable it was written on
   const tcl=transposeLinePlain(cl,n,flats);
@@ -655,6 +656,7 @@ function renderBody(body,n){
   body=decodeEntities(body);
   if(pref('hidetabs',false)) body=stripTabs(body);
   const rtl=HEBREW.test(body);
+  if(rtl) rtlWidth=Math.max(...body.replace(/\r/g,'').split('\n').map(l=>l.replace(/\s+$/,'').length),0);
   const flats=prefersFlats(body);
   const secs=[]; let cur=[]; let li=0;   // li = index of the content line within its section (cue card shows the first few)
   const flush=()=>{ if(cur.length) secs.push('<span class="sec">'+cur.join('\n')+'</span>'); cur=[]; };
